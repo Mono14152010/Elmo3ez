@@ -1,15 +1,33 @@
-import { getShopifyAccessToken } from '@/lib/shopify-auth';
+async function getAccessToken(shop, clientId, clientSecret) {
+  const res = await fetch(`https://${shop}.myshopify.com/admin/oauth/access_token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      client_id: clientId,
+      client_secret: clientSecret,
+      grant_type: 'client_credentials'
+    })
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error('Token exchange failed: ' + text);
+  }
+  const data = await res.json();
+  return data.access_token;
+}
 
-export default async (req, res) => {
+module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     res.status(405).json({ message: 'Method not allowed' });
     return;
   }
 
   const shop = process.env.SHOPIFY_SHOP_NAME;
+  const clientId = process.env.SHOPIFY_CLIENT_ID;
+  const clientSecret = process.env.SHOPIFY_CLIENT_SECRET;
 
-  if (!shop) {
-    res.status(500).json({ message: 'Missing Shopify shop name in environment variables' });
+  if (!shop || !clientId || !clientSecret) {
+    res.status(500).json({ message: 'Missing Shopify credentials in environment variables' });
     return;
   }
 
@@ -25,11 +43,10 @@ export default async (req, res) => {
   const lastName = nameParts.slice(1).join(' ') || firstName;
 
   try {
-    // احصل على التوكن الديناميكي
-    const token = await getShopifyAccessToken();
+    const token = await getAccessToken(shop, clientId, clientSecret);
 
     const shopifyRes = await fetch(
-      `https://${shop}.myshopify.com/admin/api/2026-07/draft_orders.json`,
+      `https://${shop}.myshopify.com/admin/api/2026-01/draft_orders.json`,
       {
         method: 'POST',
         headers: {
@@ -48,24 +65,32 @@ export default async (req, res) => {
               phone: phone
             },
             shipping_address: {
+              first_name: firstName,
+              last_name: lastName,
               address1: address,
-              country: 'EG'
-            }
+              phone: phone,
+              country: 'Egypt'
+            },
+            note: `طلب من فورم الموقع — التليفون: ${phone}`,
+            tags: 'website-order-form'
           }
         })
       }
     );
 
+    const data = await shopifyRes.json();
+
     if (!shopifyRes.ok) {
-      const errorData = await shopifyRes.json();
-      res.status(shopifyRes.status).json({ message: 'فشل إنشاء الطلب', error: errorData });
+      res.status(400).json({ message: 'Shopify رفض الطلب', details: data });
       return;
     }
 
-    const data = await shopifyRes.json();
-    res.status(201).json(data);
+    res.status(201).json({
+      success: true,
+      draft_order_id: data.draft_order.id,
+      message: 'تم إنشاء الطلب بنجاح'
+    });
   } catch (error) {
-    console.error('Error creating draft order:', error);
-    res.status(500).json({ message: 'خطأ في الخادم', error: error.message });
+    res.status(500).json({ message: error.message });
   }
 };
