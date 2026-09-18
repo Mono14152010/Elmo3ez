@@ -1,18 +1,36 @@
-const { getShopifyAccessToken } = require('../lib/shopify-auth');
-export default async (req, res) => {
-  const shop = process.env.SHOPIFY_SHOP_NAME;
+async function getAccessToken(shop, clientId, clientSecret) {
+  const res = await fetch(`https://${shop}.myshopify.com/admin/oauth/access_token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      client_id: clientId,
+      client_secret: clientSecret,
+      grant_type: 'client_credentials'
+    })
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error('Token exchange failed: ' + text);
+  }
+  const data = await res.json();
+  return data.access_token;
+}
 
-  if (!shop) {
-    res.status(500).json({ message: 'Missing Shopify shop name in environment variables' });
+module.exports = async (req, res) => {
+  const shop = process.env.SHOPIFY_SHOP_NAME;
+  const clientId = process.env.SHOPIFY_CLIENT_ID;
+  const clientSecret = process.env.SHOPIFY_CLIENT_SECRET;
+
+  if (!shop || !clientId || !clientSecret) {
+    res.status(500).json({ message: 'Missing Shopify credentials in environment variables' });
     return;
   }
 
   try {
-    // احصل على التوكن الديناميكي
-    const token = await getShopifyAccessToken();
+    const token = await getAccessToken(shop, clientId, clientSecret);
 
     const response = await fetch(
-      `https://${shop}.myshopify.com/admin/api/2026-07/products.json?limit=100&status=active`,
+      `https://${shop}.myshopify.com/admin/api/2026-01/products.json?limit=100&status=active`,
       {
         headers: {
           'X-Shopify-Access-Token': token,
