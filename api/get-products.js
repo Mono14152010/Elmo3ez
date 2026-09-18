@@ -1,15 +1,19 @@
-module.exports = async (req, res) => {
-  const token = process.env.SHOPIFY_ACCESS_TOKEN;
+import { getShopifyAccessToken } from '@/lib/shopify-auth';
+
+export default async (req, res) => {
   const shop = process.env.SHOPIFY_SHOP_NAME;
 
-  if (!token || !shop) {
-    res.status(500).json({ message: 'Missing Shopify credentials in environment variables' });
+  if (!shop) {
+    res.status(500).json({ message: 'Missing Shopify shop name in environment variables' });
     return;
   }
 
   try {
+    // احصل على التوكن الديناميكي
+    const token = await getShopifyAccessToken();
+
     const response = await fetch(
-      `https://${shop}.myshopify.com/admin/api/2024-01/products.json?limit=100&status=active`,
+      `https://${shop}.myshopify.com/admin/api/2026-07/products.json?limit=100&status=active`,
       {
         headers: {
           'X-Shopify-Access-Token': token,
