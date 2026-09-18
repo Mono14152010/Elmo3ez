@@ -1,5 +1,4 @@
-import { getShopifyAccessToken } from '@/lib/shopify-auth';
-
+const { getShopifyAccessToken } = require('../lib/shopify-auth');
 export default async (req, res) => {
   const shop = process.env.SHOPIFY_SHOP_NAME;
 
