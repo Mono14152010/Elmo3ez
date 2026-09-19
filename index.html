@@ -280,7 +280,7 @@ function onZoneChange(zoneId){
   if(!zoneId){ rateContainer.innerHTML=''; updateTotals(); return; }
   const zone = zones.find(z => String(z.zone_id) === String(zoneId));
   rateContainer.innerHTML = zone.rates.map((r, idx) => `
-    <label class="radio-row" id="rate-row-${idx}" onclick="selectRate(${zoneId}, ${idx})">
+    <label class="radio-row" id="rate-row-${idx}" onclick="selectRate('${zoneId}', ${idx})">
       <span class="radio-label">
         <input type="radio" name="rate" value="${idx}">
         ${r.rate_name_ar}
