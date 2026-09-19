@@ -1,11 +1,10 @@
 // api/create-draft-order.js
-// Creates a Shopify Draft Order from the submitted form data, including a
-// shipping_line whose price is looked up server-side from the SAME static
-// list as api/get-shipping.js (so a customer can't tamper with the delivery
-// price in the browser).
+// Creates a Shopify Draft Order from the submitted form data (with a
+// server-validated shipping_line), then sends a WhatsApp notification
+// to the store owner via the free CallMeBot API.
 //
-// ⚠️ This list must match api/get-shipping.js exactly. If you change a
-// price in one file, change it in the other too.
+// ⚠️ The SHIPPING_ZONES list below must match api/get-shipping.js exactly.
+// If you change a price in one file, change it in the other too.
 
 const API_VERSION = "2025-10";
 
@@ -80,6 +79,44 @@ async function getAccessToken() {
   return data.access_token;
 }
 
+function money(n) {
+  return `${Number(n).toLocaleString("ar-EG")} جنيه`;
+}
+
+async function sendWhatsAppNotification({ customer, items, shippingLine, total }) {
+  const phone = process.env.WHATSAPP_PHONE; // e.g. "+201028199093"
+  const apikey = process.env.CALLMEBOT_APIKEY; // e.g. "1873807"
+  if (!phone || !apikey) return; // not configured — skip silently
+
+  const itemLines = items
+    .map((i) => `- ${i.title || "منتج"} × ${i.quantity}`)
+    .join("\n");
+
+  const shippingLineText = shippingLine
+    ? `${shippingLine.title} (${money(shippingLine.price)})`
+    : "غير محدد";
+
+  const message =
+    `🛍️ *طلب جديد من الفورم!*\n\n` +
+    `👤 الاسم: ${customer.name}\n` +
+    `📞 التليفون: ${customer.phone}\n` +
+    `📍 العنوان: ${customer.address}\n\n` +
+    `🧾 المنتجات:\n${itemLines}\n\n` +
+    `🚚 التوصيل: ${shippingLineText}\n` +
+    `💰 الإجمالي: ${money(total)}`;
+
+  const url = `https://api.callmebot.com/whatsapp.php?phone=${encodeURIComponent(
+    phone
+  )}&text=${encodeURIComponent(message)}&apikey=${encodeURIComponent(apikey)}`;
+
+  try {
+    await fetch(url);
+  } catch (err) {
+    // Never let a WhatsApp failure break order creation.
+    console.error("WhatsApp notification failed:", err.message);
+  }
+}
+
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
@@ -116,13 +153,15 @@ module.exports = async (req, res) => {
       tags: "order-form",
     };
 
+    let shippingLine = null;
     if (shipping && shipping.zone_id && shipping.rate_name) {
       const authoritative = findAuthoritativeRate(shipping.zone_id, shipping.rate_name);
       if (authoritative) {
-        draftOrder.shipping_line = {
+        shippingLine = {
           title: `${authoritative.zone_name} - ${authoritative.rate_name}`,
           price: authoritative.price,
         };
+        draftOrder.shipping_line = shippingLine;
       }
     }
 
@@ -144,6 +183,15 @@ module.exports = async (req, res) => {
     }
 
     const orderData = await orderRes.json();
+
+    const itemsSubtotal = items.reduce(
+      (sum, i) => sum + Number(i.price || 0) * Number(i.quantity || 0),
+      0
+    );
+    const total = itemsSubtotal + (shippingLine ? Number(shippingLine.price) : 0);
+
+    await sendWhatsAppNotification({ customer, items, shippingLine, total });
+
     res.status(200).json({ success: true, draft_order: orderData.draft_order });
   } catch (err) {
     console.error(err);
