@@ -97,7 +97,8 @@ module.exports = async (req, res) => {
         };
       });
 
-    res.status(200).json({ zones });
+    // TEMP DEBUG — remove this line once shipping zones show up correctly.
+    res.status(200).json({ zones, debug_raw: data });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
