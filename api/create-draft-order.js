@@ -1,11 +1,60 @@
 // api/create-draft-order.js
-// Creates a Shopify Draft Order from the submitted form data, including
-// a shipping_line whose price is looked up server-side via Shopify's
-// GraphQL deliveryProfiles query (so a customer can't tamper with the
-// delivery price in the browser). Self-contained on purpose — no shared
-// import from get-shipping.js — to avoid repeating an earlier deploy bug.
+// Creates a Shopify Draft Order from the submitted form data, including a
+// shipping_line whose price is looked up server-side from the SAME static
+// list as api/get-shipping.js (so a customer can't tamper with the delivery
+// price in the browser).
+//
+// ⚠️ This list must match api/get-shipping.js exactly. If you change a
+// price in one file, change it in the other too.
 
 const API_VERSION = "2025-10";
+
+const SHIPPING_ZONES = [
+  { zone_id: "cairo", zone_name: "القاهرة", rates: [
+      { rate_name: "اكسبريس", price: 200 },
+      { rate_name: "ستاندرد", price: 80 },
+  ]},
+  { zone_id: "giza", zone_name: "الجيزة", rates: [
+      { rate_name: "اكسبريس", price: 230 },
+      { rate_name: "ستاندرد", price: 90 },
+  ]},
+  { zone_id: "6th_october", zone_name: "6 أكتوبر", rates: [
+      { rate_name: "اكسبريس", price: 230 },
+      { rate_name: "ستاندرد", price: 80 },
+  ]},
+  { zone_id: "helwan", zone_name: "حلوان", rates: [
+      { rate_name: "ستاندرد", price: 150 },
+  ]},
+  { zone_id: "governments", zone_name: "الشرقية، البحيرة، الدقهلية، دمياط، الغربية، كفر الشيخ، المنوفية، القليوبية", rates: [
+      { rate_name: "ستاندرد", price: 175 },
+  ]},
+  { zone_id: "middle_egypt", zone_name: "الإسكندرية، بني سويف، الفيوم", rates: [
+      { rate_name: "ستاندرد", price: 175 },
+  ]},
+  { zone_id: "north_upper_egypt", zone_name: "أسيوط، الإسماعيلية، بورسعيد، السويس", rates: [
+      { rate_name: "ستاندرد", price: 185 },
+  ]},
+  { zone_id: "minya", zone_name: "المنيا", rates: [
+      { rate_name: "ستاندرد", price: 230 },
+  ]},
+  { zone_id: "north_egypt", zone_name: "مطروح، شمال سيناء، جنوب سيناء", rates: [
+      { rate_name: "ستاندرد", price: 230 },
+  ]},
+  { zone_id: "deep_upper_egypt", zone_name: "أسوان، الأقصر، الوادي الجديد، قنا، البحر الأحمر، سوهاج", rates: [
+      { rate_name: "ستاندرد", price: 200 },
+  ]},
+  { zone_id: "asia", zone_name: "دول الخليج (الإمارات، البحرين، الكويت، عُمان، قطر، السعودية)", rates: [
+      { rate_name: "اكسبريس", price: 6000 },
+  ]},
+];
+
+function findAuthoritativeRate(zoneId, rateName) {
+  const zone = SHIPPING_ZONES.find((z) => z.zone_id === zoneId);
+  if (!zone) return null;
+  const rate = zone.rates.find((r) => r.rate_name === rateName);
+  if (!rate) return null;
+  return { zone_name: zone.zone_name, rate_name: rate.rate_name, price: rate.price };
+}
 
 async function getAccessToken() {
   const shop = process.env.SHOPIFY_SHOP_NAME; // e.g. "7naw6q-kd" (NO .myshopify.com)
@@ -29,102 +78,6 @@ async function getAccessToken() {
 
   const data = await res.json();
   return data.access_token;
-}
-
-const DELIVERY_PROFILES_QUERY = `
-  {
-    deliveryProfiles(first: 20) {
-      edges {
-        node {
-          profileLocationGroups {
-            locationGroupZones(first: 50) {
-              edges {
-                node {
-                  zone {
-                    id
-                    name
-                  }
-                  methodDefinitions(first: 20) {
-                    edges {
-                      node {
-                        name
-                        active
-                        rateProvider {
-                          __typename
-                          ... on DeliveryRateDefinition {
-                            price {
-                              amount
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-`;
-
-async function getAuthoritativeShippingRate(shop, accessToken, zoneId, rateName) {
-  const gqlRes = await fetch(
-    `https://${shop}.myshopify.com/admin/api/${API_VERSION}/graphql.json`,
-    {
-      method: "POST",
-      headers: {
-        "X-Shopify-Access-Token": accessToken,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ query: DELIVERY_PROFILES_QUERY }),
-    }
-  );
-
-  if (!gqlRes.ok) {
-    const text = await gqlRes.text();
-    throw new Error(`Shopify GraphQL request failed: ${gqlRes.status} ${text}`);
-  }
-
-  const json = await gqlRes.json();
-  if (json.errors) {
-    throw new Error(`Shopify GraphQL errors: ${JSON.stringify(json.errors)}`);
-  }
-
-  const profileEdges = json.data?.deliveryProfiles?.edges || [];
-  for (const profileEdge of profileEdges) {
-    const groups = profileEdge.node.profileLocationGroups || [];
-    for (const group of groups) {
-      const zoneEdges = group.locationGroupZones?.edges || [];
-      for (const ze of zoneEdges) {
-        const zone = ze.node.zone;
-        if (String(zone.id) !== String(zoneId)) continue;
-
-        const methodEdges = ze.node.methodDefinitions?.edges || [];
-        const match = methodEdges
-          .map((me) => me.node)
-          .find(
-            (m) =>
-              m.active &&
-              m.name === rateName &&
-              m.rateProvider &&
-              m.rateProvider.__typename === "DeliveryRateDefinition"
-          );
-
-        if (match) {
-          return {
-            zone_name: zone.name,
-            rate_name: match.name,
-            price: match.rateProvider.price.amount,
-          };
-        }
-      }
-    }
-  }
-
-  return null;
 }
 
 module.exports = async (req, res) => {
@@ -163,15 +116,8 @@ module.exports = async (req, res) => {
       tags: "order-form",
     };
 
-    // Look up the real shipping price from Shopify itself — ignore any price
-    // the browser might have sent, only trust zone_id + rate_name as a selector.
     if (shipping && shipping.zone_id && shipping.rate_name) {
-      const authoritative = await getAuthoritativeShippingRate(
-        shop,
-        accessToken,
-        shipping.zone_id,
-        shipping.rate_name
-      );
+      const authoritative = findAuthoritativeRate(shipping.zone_id, shipping.rate_name);
       if (authoritative) {
         draftOrder.shipping_line = {
           title: `${authoritative.zone_name} - ${authoritative.rate_name}`,
