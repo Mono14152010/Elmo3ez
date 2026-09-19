@@ -1,11 +1,40 @@
-// api/create-draft-order.js
-// Creates a Shopify Draft Order from the submitted form data, including
-// a shipping_line whose price is looked up server-side via Shopify's
-// GraphQL deliveryProfiles query (so a customer can't tamper with the
-// delivery price in the browser). Self-contained on purpose — no shared
-// import from get-shipping.js — to avoid repeating an earlier deploy bug.
+// api/get-shipping.js
+// Reads the merchant's own Shopify Delivery Profiles / Shipping Zones via GraphQL
+// (the modern replacement for the legacy REST shipping_zones.json, which does not
+// expose rates configured through Shopify's current "Shipping and delivery" UI).
+// This way delivery options + prices always match what's configured in Shopify —
+// no hardcoded price table to maintain in the code.
 
 const API_VERSION = "2025-10";
+
+// Optional Arabic display names for known zone/rate labels.
+// If a zone or rate name isn't in this map, its original name is shown as-is.
+// Tip: the simplest long-term fix is to just rename the zones themselves to
+// Arabic directly in Shopify (Settings > Shipping and delivery) — then this
+// map isn't needed at all, since we always echo Shopify's own zone name.
+const ZONE_NAME_AR = {
+  "cod cairo": "القاهرة",
+  "cairo": "القاهرة",
+  "giza": "الجيزة",
+  "north egypt": "شمال مصر (بحري وسيناء)",
+  "deep upper egypt": "جنوب الصعيد",
+  "governments": "محافظات الدلتا",
+  "middle egypt": "وسط الصعيد",
+  "helwan": "حلوان",
+  "6th october": "6 أكتوبر",
+  "minya": "المنيا",
+  "asia": "دول الخليج",
+};
+
+const RATE_NAME_AR = {
+  "express": "اكسبريس",
+  "standard": "ستاندرد",
+};
+
+function translate(name, map) {
+  const key = (name || "").trim().toLowerCase();
+  return map[key] || name;
+}
 
 async function getAccessToken() {
   const shop = process.env.SHOPIFY_SHOP_NAME; // e.g. "7naw6q-kd" (NO .myshopify.com)
@@ -70,7 +99,8 @@ const DELIVERY_PROFILES_QUERY = `
   }
 `;
 
-async function getAuthoritativeShippingRate(shop, accessToken, zoneId, rateName) {
+// Fetch raw delivery-profile zone/rate data from Shopify (shared with create-draft-order.js).
+async function fetchDeliveryZones(shop, accessToken) {
   const gqlRes = await fetch(
     `https://${shop}.myshopify.com/admin/api/${API_VERSION}/graphql.json`,
     {
@@ -93,6 +123,8 @@ async function getAuthoritativeShippingRate(shop, accessToken, zoneId, rateName)
     throw new Error(`Shopify GraphQL errors: ${JSON.stringify(json.errors)}`);
   }
 
+  const zonesMap = new Map();
+
   const profileEdges = json.data?.deliveryProfiles?.edges || [];
   for (const profileEdge of profileEdges) {
     const groups = profileEdge.node.profileLocationGroups || [];
@@ -100,105 +132,52 @@ async function getAuthoritativeShippingRate(shop, accessToken, zoneId, rateName)
       const zoneEdges = group.locationGroupZones?.edges || [];
       for (const ze of zoneEdges) {
         const zone = ze.node.zone;
-        if (String(zone.id) !== String(zoneId)) continue;
-
         const methodEdges = ze.node.methodDefinitions?.edges || [];
-        const match = methodEdges
+
+        const rates = methodEdges
           .map((me) => me.node)
-          .find(
+          .filter(
             (m) =>
               m.active &&
-              m.name === rateName &&
               m.rateProvider &&
               m.rateProvider.__typename === "DeliveryRateDefinition"
-          );
+          )
+          .map((m) => ({
+            rate_name: m.name,
+            price: m.rateProvider.price.amount,
+          }));
 
-        if (match) {
-          return {
-            zone_name: zone.name,
-            rate_name: match.name,
-            price: match.rateProvider.price.amount,
-          };
+        if (!rates.length) continue;
+
+        if (!zonesMap.has(zone.id)) {
+          zonesMap.set(zone.id, { zone_id: zone.id, zone_name: zone.name, rates: [] });
         }
+        zonesMap.get(zone.id).rates.push(...rates);
       }
     }
   }
 
-  return null;
+  return Array.from(zonesMap.values());
 }
 
 module.exports = async (req, res) => {
-  if (req.method !== "POST") {
-    res.status(405).json({ error: "Method not allowed" });
-    return;
-  }
-
   try {
-    const { customer, items, shipping } = req.body;
-
-    if (!customer || !customer.name || !customer.phone || !customer.address) {
-      res.status(400).json({ error: "Missing customer info" });
-      return;
-    }
-    if (!items || !items.length) {
-      res.status(400).json({ error: "No items in order" });
-      return;
-    }
-
     const shop = process.env.SHOPIFY_SHOP_NAME;
     const accessToken = await getAccessToken();
+    const rawZones = await fetchDeliveryZones(shop, accessToken);
 
-    const draftOrder = {
-      line_items: items.map((i) => ({
-        variant_id: i.variant_id,
-        quantity: i.quantity,
+    const zones = rawZones.map((z) => ({
+      zone_id: z.zone_id,
+      zone_name: z.zone_name,
+      zone_name_ar: translate(z.zone_name, ZONE_NAME_AR),
+      rates: z.rates.map((r) => ({
+        rate_name: r.rate_name,
+        rate_name_ar: translate(r.rate_name, RATE_NAME_AR),
+        price: r.price,
       })),
-      shipping_address: {
-        first_name: customer.name,
-        address1: customer.address,
-        phone: customer.phone,
-        country: "Egypt",
-      },
-      note: `الاسم: ${customer.name}\nالتليفون: ${customer.phone}\nالعنوان: ${customer.address}`,
-      tags: "order-form",
-    };
+    }));
 
-    // Look up the real shipping price from Shopify itself — ignore any price
-    // the browser might have sent, only trust zone_id + rate_name as a selector.
-    if (shipping && shipping.zone_id && shipping.rate_name) {
-      const authoritative = await getAuthoritativeShippingRate(
-        shop,
-        accessToken,
-        shipping.zone_id,
-        shipping.rate_name
-      );
-      if (authoritative) {
-        draftOrder.shipping_line = {
-          title: `${authoritative.zone_name} - ${authoritative.rate_name}`,
-          price: authoritative.price,
-        };
-      }
-    }
-
-    const orderRes = await fetch(
-      `https://${shop}.myshopify.com/admin/api/${API_VERSION}/draft_orders.json`,
-      {
-        method: "POST",
-        headers: {
-          "X-Shopify-Access-Token": accessToken,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ draft_order: draftOrder }),
-      }
-    );
-
-    if (!orderRes.ok) {
-      const text = await orderRes.text();
-      throw new Error(`Shopify draft order creation failed: ${orderRes.status} ${text}`);
-    }
-
-    const orderData = await orderRes.json();
-    res.status(200).json({ success: true, draft_order: orderData.draft_order });
+    res.status(200).json({ zones });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
