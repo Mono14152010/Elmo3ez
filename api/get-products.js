@@ -71,6 +71,8 @@ async function shopifyGetAll(shop, accessToken, initialPath, resourceKey) {
 }
 
 module.exports = async (req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+
   try {
     const shop = process.env.SHOPIFY_SHOP_NAME;
     const accessToken = await getAccessToken();
@@ -83,23 +85,30 @@ module.exports = async (req, res) => {
       "products"
     );
 
-    const products = rawProducts.map((p) => {
-      const image = p.image ? p.image.src : (p.images && p.images[0] ? p.images[0].src : null);
+    const products = rawProducts
+      .map((p) => {
+        const image = p.image ? p.image.src : (p.images && p.images[0] ? p.images[0].src : null);
 
-      const variants = (p.variants || []).map((v) => {
-        const qty = v.inventory_quantity;
-        const inStock = qty === null || qty === undefined ? true : qty > 0;
-        return {
-          variant_id: v.id,
-          title: v.title === "Default Title" ? null : v.title,
-          price: v.price,
-          in_stock: inStock,
-          inventory_quantity: qty === null || qty === undefined ? null : qty,
-        };
-      });
+        const variants = (p.variants || [])
+          .map((v) => {
+            const qty = v.inventory_quantity;
+            const inStock = qty === null || qty === undefined ? true : qty > 0;
+            return {
+              variant_id: v.id,
+              title: v.title === "Default Title" ? null : v.title,
+              price: v.price,
+              in_stock: inStock,
+              inventory_quantity: qty === null || qty === undefined ? null : qty,
+            };
+          })
+          // Only keep variants that are actually available — out-of-stock
+          // options shouldn't be orderable at all.
+          .filter((v) => v.in_stock);
 
-      return { product_id: p.id, title: p.title, image, variants, collection_titles: [] };
-    });
+        return { product_id: p.id, title: p.title, image, variants, collection_titles: [] };
+      })
+      // Drop products left with zero available variants entirely.
+      .filter((p) => p.variants.length > 0);
 
     const productsById = new Map(products.map((p) => [p.product_id, p]));
 
