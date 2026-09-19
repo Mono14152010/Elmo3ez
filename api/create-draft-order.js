@@ -1,8 +1,9 @@
 // api/create-draft-order.js
 // Creates a Shopify Draft Order from the submitted form data, including
-// a shipping_line whose price is looked up server-side from Shopify's
-// own Shipping Zones (so a customer can't tamper with the delivery price
-// in the browser).
+// a shipping_line whose price is looked up server-side via Shopify's
+// GraphQL deliveryProfiles query (so a customer can't tamper with the
+// delivery price in the browser). Self-contained on purpose — no shared
+// import from get-shipping.js — to avoid repeating an earlier deploy bug.
 
 const API_VERSION = "2025-10";
 
@@ -30,34 +31,100 @@ async function getAccessToken() {
   return data.access_token;
 }
 
+const DELIVERY_PROFILES_QUERY = `
+  {
+    deliveryProfiles(first: 20) {
+      edges {
+        node {
+          profileLocationGroups {
+            locationGroupZones(first: 50) {
+              edges {
+                node {
+                  zone {
+                    id
+                    name
+                  }
+                  methodDefinitions(first: 20) {
+                    edges {
+                      node {
+                        name
+                        active
+                        rateProvider {
+                          __typename
+                          ... on DeliveryRateDefinition {
+                            price {
+                              amount
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
 async function getAuthoritativeShippingRate(shop, accessToken, zoneId, rateName) {
-  const zonesRes = await fetch(
-    `https://${shop}.myshopify.com/admin/api/${API_VERSION}/shipping_zones.json`,
+  const gqlRes = await fetch(
+    `https://${shop}.myshopify.com/admin/api/${API_VERSION}/graphql.json`,
     {
+      method: "POST",
       headers: {
         "X-Shopify-Access-Token": accessToken,
         "Content-Type": "application/json",
       },
+      body: JSON.stringify({ query: DELIVERY_PROFILES_QUERY }),
     }
   );
 
-  if (!zonesRes.ok) {
-    const text = await zonesRes.text();
-    throw new Error(`Shopify shipping_zones fetch failed: ${zonesRes.status} ${text}`);
+  if (!gqlRes.ok) {
+    const text = await gqlRes.text();
+    throw new Error(`Shopify GraphQL request failed: ${gqlRes.status} ${text}`);
   }
 
-  const data = await zonesRes.json();
-  const zone = (data.shipping_zones || []).find((z) => String(z.id) === String(zoneId));
-  if (!zone) return null;
+  const json = await gqlRes.json();
+  if (json.errors) {
+    throw new Error(`Shopify GraphQL errors: ${JSON.stringify(json.errors)}`);
+  }
 
-  const allRates = [
-    ...(zone.price_based_shipping_rates || []),
-    ...(zone.weight_based_shipping_rates || []),
-  ];
-  const rate = allRates.find((r) => r.name === rateName);
-  if (!rate) return null;
+  const profileEdges = json.data?.deliveryProfiles?.edges || [];
+  for (const profileEdge of profileEdges) {
+    const groups = profileEdge.node.profileLocationGroups || [];
+    for (const group of groups) {
+      const zoneEdges = group.locationGroupZones?.edges || [];
+      for (const ze of zoneEdges) {
+        const zone = ze.node.zone;
+        if (String(zone.id) !== String(zoneId)) continue;
 
-  return { zone_name: zone.name, rate_name: rate.name, price: rate.price };
+        const methodEdges = ze.node.methodDefinitions?.edges || [];
+        const match = methodEdges
+          .map((me) => me.node)
+          .find(
+            (m) =>
+              m.active &&
+              m.name === rateName &&
+              m.rateProvider &&
+              m.rateProvider.__typename === "DeliveryRateDefinition"
+          );
+
+        if (match) {
+          return {
+            zone_name: zone.name,
+            rate_name: match.name,
+            price: match.rateProvider.price.amount,
+          };
+        }
+      }
+    }
+  }
+
+  return null;
 }
 
 module.exports = async (req, res) => {
