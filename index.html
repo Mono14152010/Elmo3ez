@@ -57,6 +57,13 @@
   textarea{resize:vertical;min-height:70px;}
   input:focus, textarea:focus, select:focus{outline:2px solid var(--accent);border-color:transparent;}
 
+  .collection-group{margin-bottom:22px;}
+  .collection-group:last-child{margin-bottom:0;}
+  .collection-title{
+    font-weight:700;font-size:.95rem;color:var(--accent);
+    margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--card-border);
+  }
+
   .product-card{
     display:flex;
     gap:12px;
@@ -64,7 +71,7 @@
     padding:12px 0;
     border-bottom:1px solid var(--card-border);
   }
-  .product-card:last-child{border-bottom:none;}
+  .collection-group .product-card:last-child{border-bottom:none;}
   .product-img{
     width:64px;height:64px;border-radius:10px;object-fit:cover;
     background:#10131a;flex-shrink:0;
@@ -164,6 +171,7 @@
 
 <script>
 let products = [];
+let collections = [];
 let zones = [];
 const quantities = {}; // variant_id -> qty
 const selectedVariant = {}; // product_id -> variant_id (for multi-variant products)
@@ -182,6 +190,7 @@ async function loadData(){
     if(pData.error) throw new Error(pData.error);
     if(sData.error) throw new Error(sData.error);
     products = pData.products || [];
+    collections = pData.collections || [];
     zones = sData.zones || [];
     renderProducts();
     renderShipping();
@@ -191,42 +200,70 @@ async function loadData(){
   }
 }
 
+function productCardHtml(p){
+  const hasMultipleVariants = p.variants.length > 1 && p.variants.some(v => v.title);
+  const defaultVariant = p.variants[0];
+  selectedVariant[p.product_id] = defaultVariant.variant_id;
+
+  const imgHtml = p.image
+    ? `<img class="product-img" src="${p.image}" alt="${p.title}">`
+    : `<div class="product-img placeholder">لا توجد صورة</div>`;
+
+  const variantOptions = hasMultipleVariants
+    ? `<select class="variant-select" onchange="onVariantChange(${p.product_id}, this.value)">
+        ${p.variants.map(v => `<option value="${v.variant_id}">${v.title || p.title}${!v.in_stock ? ' (غير متوفر)' : ''}</option>`).join('')}
+      </select>`
+    : '';
+
+  return `
+    <div class="product-card" id="card-${p.product_id}">
+      ${imgHtml}
+      <div class="product-info">
+        <div class="product-title">${p.title} <span class="stock-badge ${defaultVariant.in_stock ? 'in' : 'out'}" id="badge-${p.product_id}">${defaultVariant.in_stock ? 'متوفر' : 'غير متوفر'}</span></div>
+        <div class="product-price" id="price-${p.product_id}">${money(defaultVariant.price)}</div>
+        ${variantOptions}
+      </div>
+      <div class="qty-control">
+        <button type="button" class="qty-btn" onclick="changeQty(${p.product_id}, -1)">−</button>
+        <span class="qty-val" id="qty-${p.product_id}">0</span>
+        <button type="button" class="qty-btn" id="plus-${p.product_id}" onclick="changeQty(${p.product_id}, 1)" ${!defaultVariant.in_stock ? 'disabled' : ''}>+</button>
+      </div>
+    </div>`;
+}
+
 function renderProducts(){
   const container = document.getElementById('products-container');
   if(!products.length){
     container.innerHTML = '<div class="loading">لا توجد منتجات متاحة حاليًا</div>';
     return;
   }
-  container.innerHTML = products.map(p => {
-    const hasMultipleVariants = p.variants.length > 1 && p.variants.some(v => v.title);
-    const defaultVariant = p.variants[0];
-    selectedVariant[p.product_id] = defaultVariant.variant_id;
 
-    const imgHtml = p.image
-      ? `<img class="product-img" src="${p.image}" alt="${p.title}">`
-      : `<div class="product-img placeholder">لا توجد صورة</div>`;
+  const usedProductIds = new Set();
+  let html = '';
 
-    const variantOptions = hasMultipleVariants
-      ? `<select class="variant-select" onchange="onVariantChange(${p.product_id}, this.value)">
-          ${p.variants.map(v => `<option value="${v.variant_id}">${v.title || p.title}${!v.in_stock ? ' (غير متوفر)' : ''}</option>`).join('')}
-        </select>`
-      : '';
-
-    return `
-      <div class="product-card" id="card-${p.product_id}">
-        ${imgHtml}
-        <div class="product-info">
-          <div class="product-title">${p.title} <span class="stock-badge ${defaultVariant.in_stock ? 'in' : 'out'}" id="badge-${p.product_id}">${defaultVariant.in_stock ? 'متوفر' : 'غير متوفر'}</span></div>
-          <div class="product-price" id="price-${p.product_id}">${money(defaultVariant.price)}</div>
-          ${variantOptions}
-        </div>
-        <div class="qty-control">
-          <button type="button" class="qty-btn" onclick="changeQty(${p.product_id}, -1)">−</button>
-          <span class="qty-val" id="qty-${p.product_id}">0</span>
-          <button type="button" class="qty-btn" id="plus-${p.product_id}" onclick="changeQty(${p.product_id}, 1)" ${!defaultVariant.in_stock ? 'disabled' : ''}>+</button>
-        </div>
+  // One section per Shopify collection, in the order Shopify returned them.
+  collections.forEach(col => {
+    const colProducts = products.filter(p => p.collection_titles.includes(col.title));
+    if(!colProducts.length) return;
+    colProducts.forEach(p => usedProductIds.add(p.product_id));
+    html += `
+      <div class="collection-group">
+        <div class="collection-title">${col.title}</div>
+        ${colProducts.map(productCardHtml).join('')}
       </div>`;
-  }).join('');
+  });
+
+  // Any product not in a listed collection.
+  const leftover = products.filter(p => !usedProductIds.has(p.product_id));
+  if(leftover.length){
+    html += `
+      <div class="collection-group">
+        <div class="collection-title">منتجات أخرى</div>
+        ${leftover.map(productCardHtml).join('')}
+      </div>`;
+  }
+
+  container.innerHTML = html;
 }
 
 function onVariantChange(productId, variantId){
@@ -239,7 +276,6 @@ function onVariantChange(productId, variantId){
   badge.textContent = variant.in_stock ? 'متوفر' : 'غير متوفر';
   badge.className = `stock-badge ${variant.in_stock ? 'in' : 'out'}`;
   document.getElementById(`plus-${productId}`).disabled = !variant.in_stock;
-  // reset qty for this product when switching variant
   quantities[variantId] = quantities[variantId] || 0;
   document.getElementById(`qty-${productId}`).textContent = quantities[variantId];
   updateTotals();
@@ -302,8 +338,18 @@ function selectRate(zoneId, idx){
 
 function getOrderItems(){
   const items = [];
-  for(const [variantId, qty] of Object.entries(quantities)){
-    if(qty > 0) items.push({ variant_id: Number(variantId), quantity: qty });
+  for(const product of products){
+    for(const variant of product.variants){
+      const qty = quantities[variant.variant_id] || 0;
+      if(qty > 0){
+        items.push({
+          variant_id: variant.variant_id,
+          quantity: qty,
+          title: variant.title ? `${product.title} (${variant.title})` : product.title,
+          price: variant.price,
+        });
+      }
+    }
   }
   return items;
 }
