@@ -29,3 +29,420 @@
     padding:16px;
   }
   .wrap{max-width:640px;margin:0 auto;}
+  header{text-align:center;margin-bottom:24px;}
+  header h1{font-size:1.6rem;margin:0 0 4px;}
+  header p{color:var(--muted);margin:0;font-size:.95rem;}
+
+  section{
+    background:var(--card);
+    border:1px solid var(--card-border);
+    border-radius:var(--radius);
+    padding:18px;
+    margin-bottom:16px;
+  }
+  section h2{font-size:1.05rem;margin:0 0 14px;}
+
+  label{display:block;font-size:.9rem;color:var(--muted);margin-bottom:6px;}
+  input[type=text], input[type=tel], textarea, select{
+    width:100%;
+    background:#10131a;
+    border:1px solid var(--card-border);
+    color:var(--text);
+    padding:11px 12px;
+    border-radius:10px;
+    font-family:inherit;
+    font-size:1rem;
+    margin-bottom:14px;
+  }
+  textarea{resize:vertical;min-height:70px;}
+  input:focus, textarea:focus, select:focus{outline:2px solid var(--accent);border-color:transparent;}
+
+  .collection-group{margin-bottom:22px;}
+  .collection-group:last-child{margin-bottom:0;}
+  .collection-title{
+    font-weight:700;font-size:.95rem;color:var(--accent);
+    margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--card-border);
+  }
+
+  .product-card{
+    display:flex;
+    gap:12px;
+    align-items:center;
+    padding:12px 0;
+    border-bottom:1px solid var(--card-border);
+  }
+  .collection-group .product-card:last-child{border-bottom:none;}
+  .product-img{
+    width:64px;height:64px;border-radius:10px;object-fit:cover;
+    background:#10131a;flex-shrink:0;
+  }
+  .product-img.placeholder{
+    display:flex;align-items:center;justify-content:center;
+    color:var(--muted);font-size:.7rem;text-align:center;
+  }
+  .product-info{flex:1;min-width:0;}
+  .product-title{font-weight:600;font-size:.95rem;margin-bottom:4px;}
+  .product-price{color:var(--accent);font-size:.88rem;}
+  .stock-badge{
+    display:inline-block;font-size:.72rem;padding:2px 8px;border-radius:20px;margin-inline-start:8px;
+  }
+  .stock-badge.out{background:rgba(224,85,90,.15);color:var(--danger);}
+  .stock-badge.in{background:rgba(76,175,106,.15);color:var(--ok);}
+
+  .variant-select{margin:6px 0 0;width:100%;max-width:180px;padding:6px 8px;font-size:.85rem;margin-bottom:0;}
+
+  .qty-control{
+    display:flex;align-items:center;gap:8px;flex-shrink:0;
+  }
+  .qty-btn{
+    width:32px;height:32px;border-radius:8px;border:1px solid var(--card-border);
+    background:#10131a;color:var(--text);font-size:1.1rem;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .qty-btn:disabled{opacity:.35;cursor:not-allowed;}
+  .qty-val{min-width:22px;text-align:center;font-weight:600;}
+
+  .radio-row{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:10px 12px;border:1px solid var(--card-border);border-radius:10px;margin-bottom:8px;cursor:pointer;
+  }
+  .radio-row.selected{border-color:var(--accent);background:rgba(232,182,74,.08);}
+  .radio-row input{width:auto;margin:0;}
+  .radio-label{display:flex;align-items:center;gap:10px;}
+  .radio-price{color:var(--accent);font-weight:600;}
+
+  .summary-row{display:flex;justify-content:space-between;font-size:.95rem;padding:4px 0;color:var(--muted);}
+  .summary-row.total{color:var(--text);font-weight:700;font-size:1.15rem;border-top:1px solid var(--card-border);margin-top:8px;padding-top:12px;}
+
+  .submit-btn{
+    width:100%;padding:15px;border:none;border-radius:12px;
+    background:var(--accent);color:#1a1a1a;font-weight:800;font-size:1.05rem;
+    cursor:pointer;font-family:inherit;
+  }
+  .submit-btn:disabled{opacity:.5;cursor:not-allowed;}
+  .submit-btn:not(:disabled):active{background:var(--accent-dark);}
+
+  #status{text-align:center;margin-top:14px;font-size:.95rem;}
+  #status.error{color:var(--danger);}
+  #status.success{color:var(--ok);}
+  .loading{text-align:center;color:var(--muted);padding:20px 0;}
+  .scroll-nav{
+    position:fixed;left:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:50;
+  }
+  .scroll-btn{
+    width:44px;height:44px;border-radius:50%;border:1px solid var(--card-border);
+    background:var(--card);color:var(--accent);font-size:1.2rem;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.4);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🛍️ اطلب دلوقتي</h1>
+    <p>Elmo3ez.com</p>
+  </header>
+
+  <form id="order-form">
+    <section>
+      <h2>بياناتك</h2>
+      <label for="name">الاسم</label>
+      <input type="text" id="name" required>
+
+      <label for="phone">رقم التليفون</label>
+      <input type="tel" id="phone" required>
+
+      <label for="address">العنوان بالتفصيل</label>
+      <textarea id="address" required placeholder="الشارع، المنطقة، علامة مميزة..."></textarea>
+    </section>
+
+    <section>
+      <h2>المنتجات</h2>
+      <div id="products-container"><div class="loading">جاري تحميل المنتجات...</div></div>
+    </section>
+
+    <section>
+      <h2>التوصيل</h2>
+      <div id="shipping-container"><div class="loading">جاري تحميل مناطق التوصيل...</div></div>
+    </section>
+
+    <section>
+      <div class="summary-row"><span>المنتجات</span><span id="subtotal">0 جنيه</span></div>
+      <div class="summary-row"><span>التوصيل</span><span id="shipping-cost">0 جنيه</span></div>
+      <div class="summary-row total"><span>الإجمالي</span><span id="grand-total">0 جنيه</span></div>
+    </section>
+
+    <button type="submit" class="submit-btn" id="submit-btn" disabled>أكد الطلب</button>
+    <div id="status"></div>
+  </form>
+</div>
+
+<div class="scroll-nav">
+  <button type="button" class="scroll-btn" title="لأول الصفحة" onclick="window.scrollTo({top:0, behavior:'smooth'})">↑</button>
+  <button type="button" class="scroll-btn" title="لآخر الصفحة" onclick="window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'})">↓</button>
+</div>
+
+<script>
+let products = [];
+let collections = [];
+let zones = [];
+const quantities = {}; // variant_id -> qty
+const selectedVariant = {}; // product_id -> variant_id (for multi-variant products)
+let selectedShipping = null; // {zone_id, zone_name, rate_name, price}
+
+function money(n){ return `${Number(n).toLocaleString('ar-EG')} جنيه`; }
+
+async function loadData(){
+  try{
+    const [pRes, sRes] = await Promise.all([
+      fetch('/api/get-products'),
+      fetch('/api/get-shipping')
+    ]);
+    const pData = await pRes.json();
+    const sData = await sRes.json();
+    if(pData.error) throw new Error(pData.error);
+    if(sData.error) throw new Error(sData.error);
+    products = pData.products || [];
+    collections = pData.collections || [];
+    zones = sData.zones || [];
+    renderProducts();
+    renderShipping();
+  }catch(err){
+    document.getElementById('products-container').innerHTML =
+      `<div class="loading" style="color:var(--danger)">تعذر تحميل البيانات: ${err.message}</div>`;
+  }
+}
+
+function productCardHtml(p){
+  const hasMultipleVariants = p.variants.length > 1 && p.variants.some(v => v.title);
+  const defaultVariant = p.variants[0];
+  selectedVariant[p.product_id] = defaultVariant.variant_id;
+
+  const imgHtml = p.image
+    ? `<img class="product-img" src="${p.image}" alt="${p.title}">`
+    : `<div class="product-img placeholder">لا توجد صورة</div>`;
+
+  const variantOptions = hasMultipleVariants
+    ? `<select class="variant-select" onchange="onVariantChange(${p.product_id}, this.value)">
+        ${p.variants.map(v => `<option value="${v.variant_id}">${v.title || p.title}${!v.in_stock ? ' (غير متوفر)' : ''}</option>`).join('')}
+      </select>`
+    : '';
+
+  return `
+    <div class="product-card" id="card-${p.product_id}">
+      ${imgHtml}
+      <div class="product-info">
+        <div class="product-title">${p.title} <span class="stock-badge ${defaultVariant.in_stock ? 'in' : 'out'}" id="badge-${p.product_id}">${defaultVariant.in_stock ? 'متوفر' : 'غير متوفر'}</span></div>
+        <div class="product-price" id="price-${p.product_id}">${money(defaultVariant.price)}</div>
+        ${variantOptions}
+      </div>
+      <div class="qty-control">
+        <button type="button" class="qty-btn" onclick="changeQty(${p.product_id}, -1)">−</button>
+        <span class="qty-val" id="qty-${p.product_id}">0</span>
+        <button type="button" class="qty-btn" id="plus-${p.product_id}" onclick="changeQty(${p.product_id}, 1)" ${!defaultVariant.in_stock ? 'disabled' : ''}>+</button>
+      </div>
+    </div>`;
+}
+
+function renderProducts(){
+  const container = document.getElementById('products-container');
+  if(!products.length){
+    container.innerHTML = '<div class="loading">لا توجد منتجات متاحة حاليًا</div>';
+    return;
+  }
+
+  const usedProductIds = new Set();
+  let html = '';
+
+  // One section per Shopify collection, in the order Shopify returned them.
+  collections.forEach(col => {
+    const colProducts = products.filter(p => p.collection_titles.includes(col.title) && !usedProductIds.has(p.product_id));
+    if(!colProducts.length) return;
+    colProducts.forEach(p => usedProductIds.add(p.product_id));
+    html += `
+      <div class="collection-group">
+        <div class="collection-title">${col.title}</div>
+        ${colProducts.map(productCardHtml).join('')}
+      </div>`;
+  });
+
+  // Any product not in a listed collection.
+  const leftover = products.filter(p => !usedProductIds.has(p.product_id));
+  if(leftover.length){
+    html += `
+      <div class="collection-group">
+        <div class="collection-title">منتجات أخرى</div>
+        ${leftover.map(productCardHtml).join('')}
+      </div>`;
+  }
+
+  container.innerHTML = html;
+}
+
+function onVariantChange(productId, variantId){
+  variantId = Number(variantId);
+  selectedVariant[productId] = variantId;
+  const product = products.find(p => p.product_id === productId);
+  const variant = product.variants.find(v => v.variant_id === variantId);
+  document.getElementById(`price-${productId}`).textContent = money(variant.price);
+  const badge = document.getElementById(`badge-${productId}`);
+  badge.textContent = variant.in_stock ? 'متوفر' : 'غير متوفر';
+  badge.className = `stock-badge ${variant.in_stock ? 'in' : 'out'}`;
+  document.getElementById(`plus-${productId}`).disabled = !variant.in_stock;
+  quantities[variantId] = quantities[variantId] || 0;
+  document.getElementById(`qty-${productId}`).textContent = quantities[variantId];
+  updateTotals();
+}
+
+function changeQty(productId, delta){
+  const variantId = selectedVariant[productId];
+  const product = products.find(p => p.product_id === productId);
+  const variant = product.variants.find(v => v.variant_id === variantId);
+  if(!variant.in_stock) return;
+
+  const current = quantities[variantId] || 0;
+  const next = Math.max(0, current + delta);
+  quantities[variantId] = next;
+  document.getElementById(`qty-${productId}`).textContent = next;
+  updateTotals();
+}
+
+function renderShipping(){
+  const container = document.getElementById('shipping-container');
+  if(!zones.length){
+    container.innerHTML = '<div class="loading">لا توجد مناطق توصيل متاحة</div>';
+    return;
+  }
+  container.innerHTML = `
+    <label for="zone-select">المحافظة</label>
+    <select id="zone-select" onchange="onZoneChange(this.value)">
+      <option value="">اختر المحافظة</option>
+      ${zones.map(z => `<option value="${z.zone_id}">${z.zone_name_ar}</option>`).join('')}
+    </select>
+    <div id="rate-options"></div>
+  `;
+}
+
+function onZoneChange(zoneId){
+  selectedShipping = null;
+  const rateContainer = document.getElementById('rate-options');
+  if(!zoneId){ rateContainer.innerHTML=''; updateTotals(); return; }
+  const zone = zones.find(z => String(z.zone_id) === String(zoneId));
+  rateContainer.innerHTML = zone.rates.map((r, idx) => `
+    <label class="radio-row" id="rate-row-${idx}" onclick="selectRate('${zoneId}', ${idx})">
+      <span class="radio-label">
+        <input type="radio" name="rate" value="${idx}">
+        ${r.rate_name_ar}
+      </span>
+      <span class="radio-price">${money(r.price)}</span>
+    </label>
+  `).join('');
+}
+
+function selectRate(zoneId, idx){
+  const zone = zones.find(z => String(z.zone_id) === String(zoneId));
+  const rate = zone.rates[idx];
+  selectedShipping = { zone_id: zone.zone_id, zone_name: zone.zone_name, rate_name: rate.rate_name, price: rate.price };
+  document.querySelectorAll('.radio-row').forEach(el => el.classList.remove('selected'));
+  document.getElementById(`rate-row-${idx}`).classList.add('selected');
+  document.querySelectorAll('.radio-row input')[idx].checked = true;
+  updateTotals();
+}
+
+function getOrderItems(){
+  const items = [];
+  for(const product of products){
+    for(const variant of product.variants){
+      const qty = quantities[variant.variant_id] || 0;
+      if(qty > 0){
+        items.push({
+          variant_id: variant.variant_id,
+          quantity: qty,
+          title: variant.title ? `${product.title} (${variant.title})` : product.title,
+          price: variant.price,
+        });
+      }
+    }
+  }
+  return items;
+}
+
+function getSubtotal(){
+  let subtotal = 0;
+  for(const product of products){
+    for(const variant of product.variants){
+      const qty = quantities[variant.variant_id] || 0;
+      if(qty > 0) subtotal += qty * Number(variant.price);
+    }
+  }
+  return subtotal;
+}
+
+function updateTotals(){
+  const subtotal = getSubtotal();
+  const shippingCost = selectedShipping ? Number(selectedShipping.price) : 0;
+  document.getElementById('subtotal').textContent = money(subtotal);
+  document.getElementById('shipping-cost').textContent = money(shippingCost);
+  document.getElementById('grand-total').textContent = money(subtotal + shippingCost);
+
+  const hasItems = getOrderItems().length > 0;
+  document.getElementById('submit-btn').disabled = !(hasItems && selectedShipping);
+}
+
+document.getElementById('order-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const statusEl = document.getElementById('status');
+  const submitBtn = document.getElementById('submit-btn');
+  statusEl.textContent = '';
+  statusEl.className = '';
+
+  const payload = {
+    customer: {
+      name: document.getElementById('name').value.trim(),
+      phone: document.getElementById('phone').value.trim(),
+      address: document.getElementById('address').value.trim(),
+    },
+    items: getOrderItems(),
+    shipping: selectedShipping ? { zone_id: selectedShipping.zone_id, rate_name: selectedShipping.rate_name } : null,
+  };
+
+  if(!payload.customer.name || !payload.customer.phone || !payload.customer.address){
+    statusEl.textContent = 'من فضلك املأ كل البيانات';
+    statusEl.className = 'error';
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'جاري إرسال الطلب...';
+
+  try{
+    const res = await fetch('/api/create-draft-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if(!res.ok || data.error) throw new Error(data.error || 'حدث خطأ');
+
+    statusEl.textContent = '✅ تم إرسال طلبك بنجاح! هنتواصل معاك قريب.';
+    statusEl.className = 'success';
+    document.getElementById('order-form').reset();
+    for(const k in quantities) quantities[k] = 0;
+    renderProducts();
+    document.getElementById('rate-options').innerHTML = '';
+    selectedShipping = null;
+    updateTotals();
+  }catch(err){
+    statusEl.textContent = `حصل خطأ: ${err.message}`;
+    statusEl.className = 'error';
+  }finally{
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'أكد الطلب';
+    updateTotals();
+  }
+});
+
+loadData();
+</script>
+</body>
+</html>
