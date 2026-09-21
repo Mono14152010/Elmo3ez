@@ -83,7 +83,7 @@ function money(n) {
   return `${Number(n).toLocaleString("ar-EG")} جنيه`;
 }
 
-async function sendWhatsAppNotification({ customer, items, shippingLine, total }) {
+async function sendWhatsAppNotification({ customer, items, shippingLine, total, invoiceUrl }) {
   const phone = process.env.WHATSAPP_PHONE; // e.g. "+201028199093"
   const apikey = process.env.CALLMEBOT_APIKEY; // e.g. "1873807"
   if (!phone || !apikey) return; // not configured — skip silently
@@ -103,7 +103,8 @@ async function sendWhatsAppNotification({ customer, items, shippingLine, total }
     `📍 العنوان: ${customer.address}\n\n` +
     `🧾 المنتجات:\n${itemLines}\n\n` +
     `🚚 التوصيل: ${shippingLineText}\n` +
-    `💰 الإجمالي: ${money(total)}`;
+    `💰 الإجمالي: ${money(total)}` +
+    (invoiceUrl ? `\n\n💳 رابط الدفع: ${invoiceUrl}` : "");
 
   const url = `https://api.callmebot.com/whatsapp.php?phone=${encodeURIComponent(
     phone
@@ -183,6 +184,7 @@ module.exports = async (req, res) => {
     }
 
     const orderData = await orderRes.json();
+    const invoiceUrl = orderData.draft_order ? orderData.draft_order.invoice_url : null;
 
     const itemsSubtotal = items.reduce(
       (sum, i) => sum + Number(i.price || 0) * Number(i.quantity || 0),
@@ -190,9 +192,9 @@ module.exports = async (req, res) => {
     );
     const total = itemsSubtotal + (shippingLine ? Number(shippingLine.price) : 0);
 
-    await sendWhatsAppNotification({ customer, items, shippingLine, total });
+    await sendWhatsAppNotification({ customer, items, shippingLine, total, invoiceUrl });
 
-    res.status(200).json({ success: true, draft_order: orderData.draft_order });
+    res.status(200).json({ success: true, draft_order: orderData.draft_order, invoice_url: invoiceUrl });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
