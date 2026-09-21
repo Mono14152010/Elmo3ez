@@ -4,6 +4,17 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>اطلب دلوقتي - Elmo3ez</title>
+
+<!-- PWA: makes this installable as an app on Android + iOS -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f1115">
+<link rel="icon" href="/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="المعز">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -125,6 +136,25 @@
   #status{text-align:center;margin-top:14px;font-size:.95rem;}
   #status.error{color:var(--danger);}
   #status.success{color:var(--ok);}
+  .trust-note{
+    font-size:.82rem;color:var(--muted);background:#10131a;border:1px solid var(--card-border);
+    border-radius:10px;padding:10px 12px;line-height:1.6;
+  }
+  .badges-row{
+    display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:16px;
+  }
+  .badge{
+    font-size:.78rem;color:var(--muted);background:var(--card);border:1px solid var(--card-border);
+    border-radius:20px;padding:6px 12px;
+  }
+  .secure-pay-note{
+    text-align:center;font-size:.82rem;color:var(--muted);margin:10px 0 0;line-height:1.7;
+  }
+  .secure-pay-note a{color:var(--accent);}
+  .pay-now-btn{
+    display:inline-block;margin-top:10px;padding:12px 24px;border-radius:10px;
+    background:var(--accent);color:#1a1a1a;font-weight:800;text-decoration:none;
+  }
   .loading{text-align:center;color:var(--muted);padding:20px 0;}
   .scroll-nav{
     position:fixed;left:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:50;
@@ -154,6 +184,11 @@
 
       <label for="address">العنوان بالتفصيل</label>
       <textarea id="address" required placeholder="الشارع، المنطقة، علامة مميزة..."></textarea>
+
+      <div class="trust-note">
+        🔒 بياناتك دي بتُستخدم بس لتنفيذ وتوصيل طلبك، ومش بنشاركها مع حد.
+        الفورم ده مش بياخد أي بيانات كارت خالص.
+      </div>
     </section>
 
     <section>
@@ -172,7 +207,17 @@
       <div class="summary-row total"><span>الإجمالي</span><span id="grand-total">0 جنيه</span></div>
     </section>
 
+    <div class="badges-row">
+      <div class="badge">💳 دفع آمن 100%</div>
+      <div class="badge">📦 تغليف آمن</div>
+      <div class="badge">⭐ ثقة آلاف العملاء منذ 2018</div>
+    </div>
+
     <button type="submit" class="submit-btn" id="submit-btn" disabled>أكد الطلب</button>
+    <p class="secure-pay-note">
+      💳 الدفع بيتم من خلال صفحة Shopify الرسمية الآمنة — مش هنا في الفورم.
+      <a href="https://elmo3ez.com/blogs/%D8%B3%D9%8A%D8%A7%D8%B3%D8%A9-%D8%A7%D9%84%D9%85%D8%B3%D8%A4%D9%88%D9%84%D9%8A%D8%A9-%D9%88%D8%A7%D9%84%D8%AA%D8%B3%D9%88%D9%8A%D9%82-%D8%A7%D9%84%D8%A3%D8%AE%D9%84%D8%A7%D9%82%D9%8A" target="_blank">سياسة الأمان والمسؤولية</a>
+    </p>
     <div id="status"></div>
   </form>
 </div>
@@ -424,7 +469,8 @@ document.getElementById('order-form').addEventListener('submit', async (e) => {
     const data = await res.json();
     if(!res.ok || data.error) throw new Error(data.error || 'حدث خطأ');
 
-    statusEl.textContent = '✅ تم إرسال طلبك بنجاح! هنتواصل معاك قريب.';
+    statusEl.innerHTML = '✅ تم إرسال طلبك بنجاح! هنتواصل معاك قريب.' +
+      (data.invoice_url ? `<br><a href="${data.invoice_url}" target="_blank" class="pay-now-btn">💳 ادفع دلوقتي</a>` : '');
     statusEl.className = 'success';
     document.getElementById('order-form').reset();
     for(const k in quantities) quantities[k] = 0;
@@ -441,6 +487,12 @@ document.getElementById('order-form').addEventListener('submit', async (e) => {
     updateTotals();
   }
 });
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
 
 loadData();
 </script>
