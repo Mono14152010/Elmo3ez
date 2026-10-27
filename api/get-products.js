@@ -8,7 +8,14 @@
 
 const API_VERSION = "2025-10";
 
+// The token is valid for ~24h, so keep it in memory between requests
+// instead of asking Shopify for a new one every time.
+let cachedToken = null;
+let cachedTokenExpiry = 0;
+
 async function getAccessToken() {
+  if (cachedToken && Date.now() < cachedTokenExpiry) return cachedToken;
+
   const shop = process.env.SHOPIFY_SHOP_NAME; // e.g. "7naw6q-kd" (NO .myshopify.com)
   const clientId = process.env.SHOPIFY_CLIENT_ID;
   const clientSecret = process.env.SHOPIFY_CLIENT_SECRET;
@@ -29,7 +36,10 @@ async function getAccessToken() {
   }
 
   const data = await res.json();
-  return data.access_token;
+  const ttlSeconds = Number(data.expires_in) || 3600;
+  cachedToken = data.access_token;
+  cachedTokenExpiry = Date.now() + Math.max(60, ttlSeconds - 300) * 1000; // 5 min safety margin
+  return cachedToken;
 }
 
 function getNextPageUrl(linkHeader) {
@@ -49,8 +59,7 @@ function sleep(ms) {
 }
 
 // Follows Shopify's Link header pagination until every page has been fetched.
-// Retries automatically on 429 (rate limit) and paces requests so we stay
-// under Shopify's ~2 requests/second limit for this app.
+// Retries automatically on 429 (rate limit).
 async function shopifyGetAll(shop, accessToken, initialPath, resourceKey) {
   let url = `https://${shop}.myshopify.com/admin/api/${API_VERSION}/${initialPath}`;
   let results = [];
@@ -90,7 +99,10 @@ async function shopifyGetAll(shop, accessToken, initialPath, resourceKey) {
 }
 
 module.exports = async (req, res) => {
-  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  // Shared cache for 30s (stale copy allowed for another 60s while it refreshes):
+  // keeps the form near-real-time but stops every visitor from hitting Shopify's
+  // 2-requests/second limit.
+  res.setHeader("Cache-Control", "public, max-age=0, s-maxage=30, stale-while-revalidate=60");
 
   try {
     const shop = process.env.SHOPIFY_SHOP_NAME;
@@ -118,12 +130,13 @@ module.exports = async (req, res) => {
               title: v.title === "Default Title" ? null : v.title,
               price: v.price,
               in_stock: inStock,
-              inventory_quantity: qty === null || qty === undefined ? null : qty,
             };
           })
           // Only keep variants that are actually available — out-of-stock
           // options shouldn't be orderable at all.
-          .filter((v) => v.in_stock);
+          .filter((v) => v.in_stock)
+          // Customers only need to know "available": don't send stock numbers.
+          .map(({ variant_id, title, price }) => ({ variant_id, title, price }));
 
         return { product_id: p.id, title: p.title, image, variants, collection_titles: [] };
       })
@@ -179,6 +192,7 @@ module.exports = async (req, res) => {
     res.status(200).json({ products, collections });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.setHeader("Cache-Control", "no-store");
+    res.status(500).json({ error: "تعذر تحميل المنتجات حاليًا" });
   }
 };
