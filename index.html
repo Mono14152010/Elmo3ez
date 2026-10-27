@@ -8,8 +8,8 @@
 <!-- PWA: makes this installable as an app on Android + iOS -->
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0f1115">
-<link rel="icon" href="/icon-192.png" type="image/png">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/api/icon?size=192" type="image/png">
+<link rel="apple-touch-icon" href="/api/icon?size=512">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -156,6 +156,16 @@
     background:var(--accent);color:#1a1a1a;font-weight:800;text-decoration:none;
   }
   .loading{text-align:center;color:var(--muted);padding:20px 0;}
+  [hidden]{display:none !important;}
+  .hp{position:absolute;left:-9999px;top:-9999px;height:0;width:0;overflow:hidden;}
+  .search-input{
+    position:sticky;top:8px;z-index:5;
+    width:100%;background:#10131a;border:1px solid var(--card-border);color:var(--text);
+    padding:12px 14px;border-radius:10px;font-family:inherit;font-size:1rem;margin-bottom:14px;
+    box-shadow:0 4px 12px rgba(0,0,0,.35);
+  }
+  .search-input:focus{outline:2px solid var(--accent);border-color:transparent;}
+  #no-results{text-align:center;color:var(--muted);padding:20px 0;}
   .scroll-nav{
     position:fixed;left:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:50;
   }
@@ -177,13 +187,15 @@
     <section>
       <h2>بياناتك</h2>
       <label for="name">الاسم</label>
-      <input type="text" id="name" required>
+      <input type="text" id="name" required maxlength="80" autocomplete="name">
 
       <label for="phone">رقم التليفون</label>
-      <input type="tel" id="phone" required>
+      <input type="tel" id="phone" required maxlength="20" inputmode="tel" autocomplete="tel">
 
       <label for="address">العنوان بالتفصيل</label>
-      <textarea id="address" required placeholder="الشارع، المنطقة، علامة مميزة..."></textarea>
+      <textarea id="address" required maxlength="300" placeholder="الشارع، المنطقة، علامة مميزة..."></textarea>
+
+      <div class="hp" aria-hidden="true"><label>Website<input type="text" id="website" tabindex="-1" autocomplete="off"></label></div>
 
       <div class="trust-note">
         🔒 بياناتك دي بتُستخدم بس لتنفيذ وتوصيل طلبك، ومش بنشاركها مع حد.
@@ -193,6 +205,8 @@
 
     <section>
       <h2>المنتجات</h2>
+      <input type="search" id="product-search" class="search-input" placeholder="🔍 ابحث عن صنف..." autocomplete="off">
+      <div id="no-results" hidden>مفيش أصناف بالاسم ده</div>
       <div id="products-container"><div class="loading">جاري تحميل المنتجات...</div></div>
     </section>
 
@@ -234,8 +248,29 @@ let zones = [];
 const quantities = {}; // variant_id -> qty
 const selectedVariant = {}; // product_id -> variant_id (for multi-variant products)
 let selectedShipping = null; // {zone_id, zone_name, rate_name, price}
+const MAX_QTY = 50;
 
 function money(n){ return `${Number(n).toLocaleString('ar-EG')} جنيه`; }
+
+// Escape anything coming from Shopify before putting it inside HTML.
+function esc(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// Arabic-friendly text normalisation for search (ignores tashkeel, أ/إ/آ, ى/ي, ة/ه).
+function norm(s){
+  return String(s == null ? '' : s).toLowerCase()
+    .replace(/[\u064B-\u065F\u0670\u0640]/g,'')
+    .replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه')
+    .replace(/\s+/g,' ').trim();
+}
+
+function normalizeDigits(s){
+  return String(s).replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+                  .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+}
 
 async function loadData(){
   try{
@@ -254,37 +289,39 @@ async function loadData(){
     renderShipping();
   }catch(err){
     document.getElementById('products-container').innerHTML =
-      `<div class="loading" style="color:var(--danger)">تعذر تحميل البيانات: ${err.message}</div>`;
+      `<div class="loading" style="color:var(--danger)">تعذر تحميل البيانات، حاول تاني بعد شوية. (${esc(err.message)})</div>`;
   }
 }
 
-function productCardHtml(p){
+function productCardHtml(p, collectionTitle){
   const hasMultipleVariants = p.variants.length > 1 && p.variants.some(v => v.title);
   const defaultVariant = p.variants[0];
   selectedVariant[p.product_id] = defaultVariant.variant_id;
 
-  const imgHtml = p.image
-    ? `<img class="product-img" src="${p.image}" alt="${p.title}">`
+  const imgHtml = (p.image && /^https:\/\//.test(p.image))
+    ? `<img class="product-img" src="${esc(p.image)}" alt="${esc(p.title)}" loading="lazy">`
     : `<div class="product-img placeholder">لا توجد صورة</div>`;
 
   const variantOptions = hasMultipleVariants
     ? `<select class="variant-select" onchange="onVariantChange(${p.product_id}, this.value)">
-        ${p.variants.map(v => `<option value="${v.variant_id}">${v.title || p.title}${!v.in_stock ? ' (غير متوفر)' : ''}</option>`).join('')}
+        ${p.variants.map(v => `<option value="${v.variant_id}">${esc(v.title || p.title)}</option>`).join('')}
       </select>`
     : '';
 
+  const searchText = norm([p.title, collectionTitle].concat(p.variants.map(v => v.title)).join(' '));
+
   return `
-    <div class="product-card" id="card-${p.product_id}">
+    <div class="product-card" id="card-${p.product_id}" data-search="${esc(searchText)}">
       ${imgHtml}
       <div class="product-info">
-        <div class="product-title">${p.title} <span class="stock-badge ${defaultVariant.in_stock ? 'in' : 'out'}" id="badge-${p.product_id}">${defaultVariant.in_stock ? 'متوفر' : 'غير متوفر'}</span></div>
+        <div class="product-title">${esc(p.title)} <span class="stock-badge in">✔ متوفر</span></div>
         <div class="product-price" id="price-${p.product_id}">${money(defaultVariant.price)}</div>
         ${variantOptions}
       </div>
       <div class="qty-control">
         <button type="button" class="qty-btn" onclick="changeQty(${p.product_id}, -1)">−</button>
         <span class="qty-val" id="qty-${p.product_id}">0</span>
-        <button type="button" class="qty-btn" id="plus-${p.product_id}" onclick="changeQty(${p.product_id}, 1)" ${!defaultVariant.in_stock ? 'disabled' : ''}>+</button>
+        <button type="button" class="qty-btn" onclick="changeQty(${p.product_id}, 1)">+</button>
       </div>
     </div>`;
 }
@@ -299,29 +336,50 @@ function renderProducts(){
   const usedProductIds = new Set();
   let html = '';
 
-  // One section per Shopify collection, in the order Shopify returned them.
+  // One section per Shopify collection; each product appears once (first collection wins).
   collections.forEach(col => {
     const colProducts = products.filter(p => p.collection_titles.includes(col.title) && !usedProductIds.has(p.product_id));
     if(!colProducts.length) return;
     colProducts.forEach(p => usedProductIds.add(p.product_id));
     html += `
       <div class="collection-group">
-        <div class="collection-title">${col.title}</div>
-        ${colProducts.map(productCardHtml).join('')}
+        <div class="collection-title">${esc(col.title)}</div>
+        ${colProducts.map(p => productCardHtml(p, col.title)).join('')}
       </div>`;
   });
 
-  // Any product not in a listed collection.
   const leftover = products.filter(p => !usedProductIds.has(p.product_id));
   if(leftover.length){
     html += `
       <div class="collection-group">
         <div class="collection-title">منتجات أخرى</div>
-        ${leftover.map(productCardHtml).join('')}
+        ${leftover.map(p => productCardHtml(p, 'منتجات أخرى')).join('')}
       </div>`;
   }
 
   container.innerHTML = html;
+  applySearch();
+}
+
+// Hide/show cards (without re-rendering, so chosen quantities are kept).
+function applySearch(){
+  const input = document.getElementById('product-search');
+  const terms = norm(input ? input.value : '').split(' ').filter(Boolean);
+  let anyVisible = false;
+
+  document.querySelectorAll('#products-container .collection-group').forEach(group => {
+    let groupVisible = false;
+    group.querySelectorAll('.product-card').forEach(card => {
+      const text = card.getAttribute('data-search') || '';
+      const match = terms.every(t => text.includes(t));
+      card.hidden = !match;
+      if(match) groupVisible = true;
+    });
+    group.hidden = !groupVisible;
+    if(groupVisible) anyVisible = true;
+  });
+
+  document.getElementById('no-results').hidden = anyVisible || !products.length;
 }
 
 function onVariantChange(productId, variantId){
@@ -330,10 +388,6 @@ function onVariantChange(productId, variantId){
   const product = products.find(p => p.product_id === productId);
   const variant = product.variants.find(v => v.variant_id === variantId);
   document.getElementById(`price-${productId}`).textContent = money(variant.price);
-  const badge = document.getElementById(`badge-${productId}`);
-  badge.textContent = variant.in_stock ? 'متوفر' : 'غير متوفر';
-  badge.className = `stock-badge ${variant.in_stock ? 'in' : 'out'}`;
-  document.getElementById(`plus-${productId}`).disabled = !variant.in_stock;
   quantities[variantId] = quantities[variantId] || 0;
   document.getElementById(`qty-${productId}`).textContent = quantities[variantId];
   updateTotals();
@@ -341,12 +395,8 @@ function onVariantChange(productId, variantId){
 
 function changeQty(productId, delta){
   const variantId = selectedVariant[productId];
-  const product = products.find(p => p.product_id === productId);
-  const variant = product.variants.find(v => v.variant_id === variantId);
-  if(!variant.in_stock) return;
-
   const current = quantities[variantId] || 0;
-  const next = Math.max(0, current + delta);
+  const next = Math.min(MAX_QTY, Math.max(0, current + delta));
   quantities[variantId] = next;
   document.getElementById(`qty-${productId}`).textContent = next;
   updateTotals();
@@ -362,7 +412,7 @@ function renderShipping(){
     <label for="zone-select">المحافظة</label>
     <select id="zone-select" onchange="onZoneChange(this.value)">
       <option value="">اختر المحافظة</option>
-      ${zones.map(z => `<option value="${z.zone_id}">${z.zone_name_ar}</option>`).join('')}
+      ${zones.map(z => `<option value="${esc(z.zone_id)}">${esc(z.zone_name_ar)}</option>`).join('')}
     </select>
     <div id="rate-options"></div>
   `;
@@ -374,10 +424,10 @@ function onZoneChange(zoneId){
   if(!zoneId){ rateContainer.innerHTML=''; updateTotals(); return; }
   const zone = zones.find(z => String(z.zone_id) === String(zoneId));
   rateContainer.innerHTML = zone.rates.map((r, idx) => `
-    <label class="radio-row" id="rate-row-${idx}" onclick="selectRate('${zoneId}', ${idx})">
+    <label class="radio-row" id="rate-row-${idx}" onclick="selectRate('${esc(zoneId)}', ${idx})">
       <span class="radio-label">
         <input type="radio" name="rate" value="${idx}">
-        ${r.rate_name_ar}
+        ${esc(r.rate_name_ar)}
       </span>
       <span class="radio-price">${money(r.price)}</span>
     </label>
@@ -400,12 +450,7 @@ function getOrderItems(){
     for(const variant of product.variants){
       const qty = quantities[variant.variant_id] || 0;
       if(qty > 0){
-        items.push({
-          variant_id: variant.variant_id,
-          quantity: qty,
-          title: variant.title ? `${product.title} (${variant.title})` : product.title,
-          price: variant.price,
-        });
+        items.push({ variant_id: variant.variant_id, quantity: qty });
       }
     }
   }
@@ -434,6 +479,11 @@ function updateTotals(){
   document.getElementById('submit-btn').disabled = !(hasItems && selectedShipping);
 }
 
+document.getElementById('product-search').addEventListener('input', applySearch);
+document.getElementById('product-search').addEventListener('keydown', (e) => {
+  if(e.key === 'Enter'){ e.preventDefault(); e.target.blur(); }
+});
+
 document.getElementById('order-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const statusEl = document.getElementById('status');
@@ -444,15 +494,21 @@ document.getElementById('order-form').addEventListener('submit', async (e) => {
   const payload = {
     customer: {
       name: document.getElementById('name').value.trim(),
-      phone: document.getElementById('phone').value.trim(),
+      phone: normalizeDigits(document.getElementById('phone').value.trim()),
       address: document.getElementById('address').value.trim(),
     },
     items: getOrderItems(),
     shipping: selectedShipping ? { zone_id: selectedShipping.zone_id, rate_name: selectedShipping.rate_name } : null,
+    website: document.getElementById('website').value, // honeypot: must stay empty
   };
 
   if(!payload.customer.name || !payload.customer.phone || !payload.customer.address){
     statusEl.textContent = 'من فضلك املأ كل البيانات';
+    statusEl.className = 'error';
+    return;
+  }
+  if(!/^[+0-9\s-]{8,20}$/.test(payload.customer.phone)){
+    statusEl.textContent = 'رقم التليفون مش صحيح، اكتبه بالأرقام بس';
     statusEl.className = 'error';
     return;
   }
@@ -466,11 +522,12 @@ document.getElementById('order-form').addEventListener('submit', async (e) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    const data = await res.json();
-    if(!res.ok || data.error) throw new Error(data.error || 'حدث خطأ');
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok || data.error) throw new Error(data.error || 'حصل خطأ، حاول تاني');
 
+    const safeInvoice = (data.invoice_url && /^https:\/\//.test(data.invoice_url)) ? data.invoice_url : null;
     statusEl.innerHTML = '✅ تم إرسال طلبك بنجاح! هنتواصل معاك قريب.' +
-      (data.invoice_url ? `<br><a href="${data.invoice_url}" target="_blank" class="pay-now-btn">💳 ادفع دلوقتي</a>` : '');
+      (safeInvoice ? `<br><a href="${esc(safeInvoice)}" target="_blank" rel="noopener" class="pay-now-btn">💳 ادفع أونلاين دلوقتي (اختياري)</a>` : '');
     statusEl.className = 'success';
     document.getElementById('order-form').reset();
     for(const k in quantities) quantities[k] = 0;
@@ -478,8 +535,9 @@ document.getElementById('order-form').addEventListener('submit', async (e) => {
     document.getElementById('rate-options').innerHTML = '';
     selectedShipping = null;
     updateTotals();
+    statusEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }catch(err){
-    statusEl.textContent = `حصل خطأ: ${err.message}`;
+    statusEl.textContent = err.message;
     statusEl.className = 'error';
   }finally{
     submitBtn.disabled = false;
