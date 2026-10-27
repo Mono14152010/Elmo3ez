@@ -174,92 +174,161 @@
     background:var(--card);color:var(--accent);font-size:1.2rem;cursor:pointer;
     display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.4);
   }
+  .top-bar{display:flex;justify-content:flex-end;margin-bottom:8px;}
+  .lang-btn{
+    background:var(--card);color:var(--accent);border:1px solid var(--card-border);
+    border-radius:20px;padding:6px 16px;font-family:inherit;font-weight:700;font-size:.9rem;cursor:pointer;
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
+  <div class="top-bar"><button type="button" id="lang-btn" class="lang-btn">English</button></div>
+
   <header>
-    <h1>🛍️ اطلب دلوقتي</h1>
+    <h1>🛍️ <span data-i18n="h1">اطلب دلوقتي</span></h1>
     <p>Elmo3ez.com</p>
   </header>
 
   <form id="order-form">
     <section>
-      <h2>بياناتك</h2>
-      <label for="name">الاسم</label>
+      <h2 data-i18n="yourInfo">بياناتك</h2>
+      <label for="name" data-i18n="name">الاسم</label>
       <input type="text" id="name" required maxlength="80" autocomplete="name">
 
-      <label for="phone">رقم التليفون</label>
+      <label for="phone" data-i18n="phone">رقم التليفون</label>
       <input type="tel" id="phone" required maxlength="20" inputmode="tel" autocomplete="tel">
 
-      <label for="address">العنوان بالتفصيل</label>
-      <textarea id="address" required maxlength="300" placeholder="الشارع، المنطقة، علامة مميزة..."></textarea>
+      <label for="address" data-i18n="address">العنوان بالتفصيل</label>
+      <textarea id="address" required maxlength="300" data-i18n-ph="addressPh" placeholder="الشارع، المنطقة، علامة مميزة..."></textarea>
 
       <div class="hp" aria-hidden="true"><label>Website<input type="text" id="website" tabindex="-1" autocomplete="off"></label></div>
 
-      <div class="trust-note">
-        🔒 بياناتك دي بتُستخدم بس لتنفيذ وتوصيل طلبك، ومش بنشاركها مع حد.
-        الفورم ده مش بياخد أي بيانات كارت خالص.
-      </div>
+      <div class="trust-note" data-i18n="trust">🔒 بياناتك دي بتُستخدم بس لتنفيذ وتوصيل طلبك، ومش بنشاركها مع حد. الفورم ده مش بياخد أي بيانات كارت خالص.</div>
     </section>
 
     <section>
-      <h2>المنتجات</h2>
-      <input type="search" id="product-search" class="search-input" placeholder="🔍 ابحث عن صنف..." autocomplete="off">
-      <div id="no-results" hidden>مفيش أصناف بالاسم ده</div>
-      <div id="products-container"><div class="loading">جاري تحميل المنتجات...</div></div>
+      <h2 data-i18n="products">المنتجات</h2>
+      <input type="search" id="product-search" class="search-input" data-i18n-ph="searchPh" placeholder="🔍 ابحث عن صنف..." autocomplete="off">
+      <div id="no-results" hidden data-i18n="noResults">مفيش أصناف بالاسم ده</div>
+      <div id="products-container"><div class="loading" data-i18n="loadingProducts">جاري تحميل المنتجات...</div></div>
     </section>
 
     <section>
-      <h2>التوصيل</h2>
-      <div id="shipping-container"><div class="loading">جاري تحميل مناطق التوصيل...</div></div>
+      <h2 data-i18n="delivery">التوصيل</h2>
+      <div id="shipping-container"><div class="loading" data-i18n="loadingZones">جاري تحميل مناطق التوصيل...</div></div>
     </section>
 
     <section>
-      <div class="summary-row"><span>المنتجات</span><span id="subtotal">0 جنيه</span></div>
-      <div class="summary-row"><span>التوصيل</span><span id="shipping-cost">0 جنيه</span></div>
-      <div class="summary-row total"><span>الإجمالي</span><span id="grand-total">0 جنيه</span></div>
+      <div class="summary-row"><span data-i18n="sumItems">المنتجات</span><span id="subtotal">0</span></div>
+      <div class="summary-row"><span data-i18n="sumDelivery">التوصيل</span><span id="shipping-cost">0</span></div>
+      <div class="summary-row total"><span data-i18n="sumTotal">الإجمالي</span><span id="grand-total">0</span></div>
     </section>
 
     <div class="badges-row">
-      <div class="badge">💳 دفع آمن 100%</div>
-      <div class="badge">📦 تغليف آمن</div>
-      <div class="badge">⭐ ثقة آلاف العملاء منذ 2018</div>
+      <div class="badge" data-i18n="badge1">💳 دفع آمن 100%</div>
+      <div class="badge" data-i18n="badge2">📦 تغليف آمن</div>
+      <div class="badge" data-i18n="badge3">⭐ ثقة آلاف العملاء منذ 2018</div>
     </div>
 
     <button type="submit" class="submit-btn" id="submit-btn" disabled>أكد الطلب</button>
     <p class="secure-pay-note">
-      💳 الدفع بيتم من خلال صفحة Shopify الرسمية الآمنة — مش هنا في الفورم.
-      <a href="https://elmo3ez.com/blogs/%D8%B3%D9%8A%D8%A7%D8%B3%D8%A9-%D8%A7%D9%84%D9%85%D8%B3%D8%A4%D9%88%D9%84%D9%8A%D8%A9-%D9%88%D8%A7%D9%84%D8%AA%D8%B3%D9%88%D9%8A%D9%82-%D8%A7%D9%84%D8%A3%D8%AE%D9%84%D8%A7%D9%82%D9%8A" target="_blank">سياسة الأمان والمسؤولية</a>
+      <span data-i18n="securePay">💳 الدفع بيتم من خلال صفحة Shopify الرسمية الآمنة — مش هنا في الفورم.</span>
+      <a href="https://elmo3ez.com/blogs/%D8%B3%D9%8A%D8%A7%D8%B3%D8%A9-%D8%A7%D9%84%D9%85%D8%B3%D8%A4%D9%88%D9%84%D9%8A%D8%A9-%D9%88%D8%A7%D9%84%D8%AA%D8%B3%D9%88%D9%8A%D9%82-%D8%A7%D9%84%D8%A3%D8%AE%D9%84%D8%A7%D9%82%D9%8A" target="_blank" rel="noopener" data-i18n="policy">سياسة الأمان والمسؤولية</a>
     </p>
     <div id="status"></div>
   </form>
 </div>
 
 <div class="scroll-nav">
-  <button type="button" class="scroll-btn" title="لأول الصفحة" onclick="window.scrollTo({top:0, behavior:'smooth'})">↑</button>
-  <button type="button" class="scroll-btn" title="لآخر الصفحة" onclick="window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'})">↓</button>
+  <button type="button" class="scroll-btn" data-i18n-title="toTop" title="لأول الصفحة" onclick="window.scrollTo({top:0, behavior:'smooth'})">↑</button>
+  <button type="button" class="scroll-btn" data-i18n-title="toBottom" title="لآخر الصفحة" onclick="window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'})">↓</button>
 </div>
 
 <script>
-let products = [];
-let collections = [];
-let zones = [];
-const quantities = {}; // variant_id -> qty
-const selectedVariant = {}; // product_id -> variant_id (for multi-variant products)
-let selectedShipping = null; // {zone_id, zone_name, rate_name, price}
-const MAX_QTY = 50;
+// ===================== Languages =====================
+const I18N = {
+  ar: {
+    pageTitle:'اطلب دلوقتي - Elmo3ez', h1:'اطلب دلوقتي', yourInfo:'بياناتك', name:'الاسم', phone:'رقم التليفون',
+    address:'العنوان بالتفصيل', addressPh:'الشارع، المنطقة، علامة مميزة...',
+    trust:'🔒 بياناتك دي بتُستخدم بس لتنفيذ وتوصيل طلبك، ومش بنشاركها مع حد. الفورم ده مش بياخد أي بيانات كارت خالص.',
+    products:'المنتجات', searchPh:'🔍 ابحث عن صنف...', noResults:'مفيش أصناف بالاسم ده',
+    loadingProducts:'جاري تحميل المنتجات...', loadingZones:'جاري تحميل مناطق التوصيل...',
+    delivery:'التوصيل', sumItems:'المنتجات', sumDelivery:'التوصيل', sumTotal:'الإجمالي',
+    badge1:'💳 دفع آمن 100%', badge2:'📦 تغليف آمن', badge3:'⭐ ثقة آلاف العملاء منذ 2018',
+    confirm:'أكد الطلب', sending:'جاري إرسال الطلب...',
+    securePay:'💳 الدفع بيتم من خلال صفحة Shopify الرسمية الآمنة — مش هنا في الفورم.',
+    policy:'سياسة الأمان والمسؤولية', inStock:'✔ متوفر', noImage:'لا توجد صورة',
+    govLabel:'المحافظة', govChoose:'اختر المحافظة', noZones:'لا توجد مناطق توصيل متاحة',
+    noProducts:'لا توجد منتجات متاحة حاليًا', otherProducts:'منتجات أخرى',
+    loadError:'تعذر تحميل البيانات، حاول تاني بعد شوية.', currency:'جنيه',
+    fillAll:'من فضلك املأ كل البيانات', badPhone:'رقم التليفون مش صحيح، اكتبه بالأرقام بس',
+    genericError:'حصل خطأ، حاول تاني بعد شوية',
+    success:'✅ تم إرسال طلبك بنجاح! هنتواصل معاك قريب.', payNow:'💳 ادفع أونلاين دلوقتي (اختياري)',
+    toTop:'لأول الصفحة', toBottom:'لآخر الصفحة'
+  },
+  en: {
+    pageTitle:'Order now - Elmo3ez', h1:'Order now', yourInfo:'Your details', name:'Name', phone:'Phone number',
+    address:'Full address', addressPh:'Street, area, landmark...',
+    trust:'🔒 Your details are used only to prepare and deliver your order and are never shared. This form does not collect any card details.',
+    products:'Products', searchPh:'🔍 Search for an item...', noResults:'No items match your search',
+    loadingProducts:'Loading products...', loadingZones:'Loading delivery areas...',
+    delivery:'Delivery', sumItems:'Items', sumDelivery:'Delivery', sumTotal:'Total',
+    badge1:'💳 100% secure payment', badge2:'📦 Safe packaging', badge3:'⭐ Trusted by thousands of customers since 2018',
+    confirm:'Confirm order', sending:'Sending your order...',
+    securePay:'💳 Payment is made on the official, secure Shopify page — not in this form.',
+    policy:'Safety & responsibility policy', inStock:'✔ In stock', noImage:'No image',
+    govLabel:'Governorate', govChoose:'Choose governorate', noZones:'No delivery areas available',
+    noProducts:'No products available right now', otherProducts:'Other products',
+    loadError:'Could not load the data, please try again in a moment.', currency:'EGP',
+    fillAll:'Please fill in all fields', badPhone:'Invalid phone number, please use digits only',
+    genericError:'Something went wrong, please try again in a moment',
+    success:'✅ Your order was sent successfully! We will contact you soon.', payNow:'💳 Pay online now (optional)',
+    toTop:'Back to top', toBottom:'Go to bottom'
+  }
+};
 
-function money(n){ return `${Number(n).toLocaleString('ar-EG')} جنيه`; }
+// Messages the server sends in Arabic -> English.
+const SERVER_ERRORS_EN = {
+  'من فضلك املأ كل البيانات':'Please fill in all fields',
+  'رقم التليفون مش صحيح':'Invalid phone number',
+  'بيانات المنتجات غير صحيحة':'Invalid product data',
+  'الكمية غير صحيحة':'Invalid quantity',
+  'اختار منتج واحد على الأقل':'Please choose at least one product',
+  'عدد الأصناف كبير جدًا في طلب واحد':'Too many different items in one order',
+  'أقصى كمية للصنف الواحد 50':'Maximum quantity per item is 50',
+  'اختار المحافظة ونوع التوصيل':'Please choose a governorate and a delivery type',
+  'أحد المنتجات لم يعد متاحًا، حدّث الصفحة وجرب تاني':'One of the products is no longer available, please refresh the page and try again',
+  'الكمية المطلوبة من أحد المنتجات غير متاحة، حدّث الصفحة وجرب تاني':'The requested quantity of one product is not available, please refresh the page and try again',
+  'طلبات كتير في وقت قصير، حاول تاني بعد شوية':'Too many requests in a short time, please try again in a moment',
+  'حصل خطأ أثناء إرسال الطلب، حاول تاني بعد شوية':'Something went wrong while sending your order, please try again in a moment'
+};
 
-// Escape anything coming from Shopify before putting it inside HTML.
+// English names for the delivery areas and delivery types (Arabic -> English).
+const BUILTIN_EN = {
+  'القاهرة':'Cairo', 'الجيزة':'Giza', '6 أكتوبر':'6th of October', 'حلوان':'Helwan', 'المنيا':'Minya',
+  'الشرقية، البحيرة، الدقهلية، دمياط، الغربية، كفر الشيخ، المنوفية، القليوبية':'Sharqia, Beheira, Dakahlia, Damietta, Gharbia, Kafr El-Sheikh, Monufia, Qalyubia',
+  'الإسكندرية، بني سويف، الفيوم':'Alexandria, Beni Suef, Faiyum',
+  'أسيوط، الإسماعيلية، بورسعيد، السويس':'Asyut, Ismailia, Port Said, Suez',
+  'مطروح، شمال سيناء، جنوب سيناء':'Matrouh, North Sinai, South Sinai',
+  'أسوان، الأقصر، الوادي الجديد، قنا، البحر الأحمر، سوهاج':'Aswan, Luxor, New Valley, Qena, Red Sea, Sohag',
+  'دول الخليج (الإمارات، البحرين، الكويت، عُمان، قطر، السعودية)':'Gulf countries (UAE, Bahrain, Kuwait, Oman, Qatar, Saudi Arabia)',
+  'اكسبريس':'Express', 'ستاندرد':'Standard'
+};
+
+let lang = 'ar';
+try { const saved = localStorage.getItem('lang'); if (saved === 'en' || saved === 'ar') lang = saved; } catch (e) {}
+
+function t(key){ return (I18N[lang] && I18N[lang][key]) || I18N.ar[key] || key; }
+
+// ===================== Helpers =====================
 function esc(s){
   return String(s == null ? '' : s)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-// Arabic-friendly text normalisation for search (ignores tashkeel, أ/إ/آ, ى/ي, ة/ه).
+// Arabic-friendly normalisation (ignores tashkeel, أ/إ/آ, ى/ي, ة/ه and letter case).
 function norm(s){
   return String(s == null ? '' : s).toLowerCase()
     .replace(/[\u064B-\u065F\u0670\u0640]/g,'')
@@ -272,96 +341,146 @@ function normalizeDigits(s){
                   .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
 }
 
+function money(n){
+  const num = lang === 'ar' ? Number(n).toLocaleString('ar-EG') : Number(n).toLocaleString('en-US');
+  return `${num} ${t('currency')}`;
+}
+
+// ===================== Names (names.json) =====================
+// names.json: { "ar": { "English name": "الاسم بالعربي" }, "en": { "اسم عربي": "English name" } }
+const NAMES = { ar: {}, en: Object.assign({}, BUILTIN_EN) };
+const NAME_INDEX = { ar: new Map(), en: new Map() };
+
+function buildNameIndex(){
+  ['ar','en'].forEach(L => {
+    const m = new Map();
+    Object.entries(NAMES[L]).forEach(([k, v]) => { if (v) m.set(norm(k), String(v)); });
+    NAME_INDEX[L] = m;
+  });
+}
+function mergeNames(data){
+  if (data && typeof data === 'object') {
+    ['ar','en'].forEach(L => { if (data[L] && typeof data[L] === 'object') Object.assign(NAMES[L], data[L]); });
+  }
+  buildNameIndex();
+}
+// Name to show in the current language (falls back to the original text).
+function tr(text, L){
+  if (text == null) return '';
+  const hit = NAME_INDEX[L || lang].get(norm(text));
+  return hit || text;
+}
+buildNameIndex();
+
+// ===================== State =====================
+let products = [];
+let collections = [];
+let zones = [];
+let loaded = false;
+const quantities = {};      // variant_id -> qty
+const selectedVariant = {}; // product_id -> variant_id
+let selectedZoneId = null;
+let selectedShipping = null; // {zone_id, zone_name, rate_name, price}
+let statusState = null;      // {kind:'success', invoice} | {kind:'error', key|server}
+const MAX_QTY = 50;
+
+// ===================== Loading =====================
 async function loadData(){
   try{
-    const [pRes, sRes] = await Promise.all([
+    const [pRes, sRes, names] = await Promise.all([
       fetch('/api/get-products'),
-      fetch('/api/get-shipping')
+      fetch('/api/get-shipping'),
+      fetch('/names.json').then(r => r.ok ? r.json() : {}).catch(() => ({}))
     ]);
     const pData = await pRes.json();
     const sData = await sRes.json();
     if(pData.error) throw new Error(pData.error);
     if(sData.error) throw new Error(sData.error);
+    mergeNames(names);
     products = pData.products || [];
     collections = pData.collections || [];
     zones = sData.zones || [];
+    loaded = true;
     renderProducts();
     renderShipping();
   }catch(err){
+    console.error(err);
     document.getElementById('products-container').innerHTML =
-      `<div class="loading" style="color:var(--danger)">تعذر تحميل البيانات، حاول تاني بعد شوية. (${esc(err.message)})</div>`;
+      `<div class="loading" style="color:var(--danger)">${esc(t('loadError'))}</div>`;
   }
 }
 
+// ===================== Products =====================
 function productCardHtml(p, collectionTitle){
   const hasMultipleVariants = p.variants.length > 1 && p.variants.some(v => v.title);
-  const defaultVariant = p.variants[0];
-  selectedVariant[p.product_id] = defaultVariant.variant_id;
+  const current = p.variants.find(v => v.variant_id === selectedVariant[p.product_id]) || p.variants[0];
+  selectedVariant[p.product_id] = current.variant_id;
+  const qty = quantities[current.variant_id] || 0;
 
   const imgHtml = (p.image && /^https:\/\//.test(p.image))
-    ? `<img class="product-img" src="${esc(p.image)}" alt="${esc(p.title)}" loading="lazy">`
-    : `<div class="product-img placeholder">لا توجد صورة</div>`;
+    ? `<img class="product-img" src="${esc(p.image)}" alt="${esc(tr(p.title))}" loading="lazy">`
+    : `<div class="product-img placeholder">${esc(t('noImage'))}</div>`;
 
   const variantOptions = hasMultipleVariants
     ? `<select class="variant-select" onchange="onVariantChange(${p.product_id}, this.value)">
-        ${p.variants.map(v => `<option value="${v.variant_id}">${esc(v.title || p.title)}</option>`).join('')}
+        ${p.variants.map(v => `<option value="${v.variant_id}"${v.variant_id === current.variant_id ? ' selected' : ''}>${esc(tr(v.title || p.title))}</option>`).join('')}
       </select>`
     : '';
 
-  const searchText = norm([p.title, collectionTitle].concat(p.variants.map(v => v.title)).join(' '));
+  // Search works in both languages, whichever one is on screen.
+  const searchParts = [p.title, tr(p.title,'ar'), tr(p.title,'en'), collectionTitle, tr(collectionTitle,'ar'), tr(collectionTitle,'en')];
+  p.variants.forEach(v => { if (v.title) searchParts.push(v.title, tr(v.title,'ar'), tr(v.title,'en')); });
 
   return `
-    <div class="product-card" id="card-${p.product_id}" data-search="${esc(searchText)}">
+    <div class="product-card" id="card-${p.product_id}" data-search="${esc(norm(searchParts.join(' ')))}">
       ${imgHtml}
       <div class="product-info">
-        <div class="product-title">${esc(p.title)} <span class="stock-badge in">✔ متوفر</span></div>
-        <div class="product-price" id="price-${p.product_id}">${money(defaultVariant.price)}</div>
+        <div class="product-title">${esc(tr(p.title))} <span class="stock-badge in">${esc(t('inStock'))}</span></div>
+        <div class="product-price" id="price-${p.product_id}">${money(current.price)}</div>
         ${variantOptions}
       </div>
       <div class="qty-control">
         <button type="button" class="qty-btn" onclick="changeQty(${p.product_id}, -1)">−</button>
-        <span class="qty-val" id="qty-${p.product_id}">0</span>
+        <span class="qty-val" id="qty-${p.product_id}">${qty}</span>
         <button type="button" class="qty-btn" onclick="changeQty(${p.product_id}, 1)">+</button>
       </div>
     </div>`;
 }
 
 function renderProducts(){
+  if(!loaded) return;
   const container = document.getElementById('products-container');
   if(!products.length){
-    container.innerHTML = '<div class="loading">لا توجد منتجات متاحة حاليًا</div>';
+    container.innerHTML = `<div class="loading">${esc(t('noProducts'))}</div>`;
     return;
   }
 
-  const usedProductIds = new Set();
+  const used = new Set();
   let html = '';
 
-  // One section per Shopify collection; each product appears once (first collection wins).
   collections.forEach(col => {
-    const colProducts = products.filter(p => p.collection_titles.includes(col.title) && !usedProductIds.has(p.product_id));
+    const colProducts = products.filter(p => p.collection_titles.includes(col.title) && !used.has(p.product_id));
     if(!colProducts.length) return;
-    colProducts.forEach(p => usedProductIds.add(p.product_id));
-    html += `
-      <div class="collection-group">
-        <div class="collection-title">${esc(col.title)}</div>
-        ${colProducts.map(p => productCardHtml(p, col.title)).join('')}
-      </div>`;
+    colProducts.forEach(p => used.add(p.product_id));
+    html += `<div class="collection-group">
+      <div class="collection-title">${esc(tr(col.title))}</div>
+      ${colProducts.map(p => productCardHtml(p, col.title)).join('')}
+    </div>`;
   });
 
-  const leftover = products.filter(p => !usedProductIds.has(p.product_id));
+  const leftover = products.filter(p => !used.has(p.product_id));
   if(leftover.length){
-    html += `
-      <div class="collection-group">
-        <div class="collection-title">منتجات أخرى</div>
-        ${leftover.map(p => productCardHtml(p, 'منتجات أخرى')).join('')}
-      </div>`;
+    html += `<div class="collection-group">
+      <div class="collection-title">${esc(t('otherProducts'))}</div>
+      ${leftover.map(p => productCardHtml(p, t('otherProducts'))).join('')}
+    </div>`;
   }
 
   container.innerHTML = html;
   applySearch();
 }
 
-// Hide/show cards (without re-rendering, so chosen quantities are kept).
+// Hide/show cards without re-rendering (chosen quantities are kept).
 function applySearch(){
   const input = document.getElementById('product-search');
   const terms = norm(input ? input.value : '').split(' ').filter(Boolean);
@@ -371,7 +490,7 @@ function applySearch(){
     let groupVisible = false;
     group.querySelectorAll('.product-card').forEach(card => {
       const text = card.getAttribute('data-search') || '';
-      const match = terms.every(t => text.includes(t));
+      const match = terms.every(term => text.includes(term));
       card.hidden = !match;
       if(match) groupVisible = true;
     });
@@ -388,70 +507,78 @@ function onVariantChange(productId, variantId){
   const product = products.find(p => p.product_id === productId);
   const variant = product.variants.find(v => v.variant_id === variantId);
   document.getElementById(`price-${productId}`).textContent = money(variant.price);
-  quantities[variantId] = quantities[variantId] || 0;
-  document.getElementById(`qty-${productId}`).textContent = quantities[variantId];
+  document.getElementById(`qty-${productId}`).textContent = quantities[variantId] || 0;
   updateTotals();
 }
 
 function changeQty(productId, delta){
   const variantId = selectedVariant[productId];
-  const current = quantities[variantId] || 0;
-  const next = Math.min(MAX_QTY, Math.max(0, current + delta));
+  const next = Math.min(MAX_QTY, Math.max(0, (quantities[variantId] || 0) + delta));
   quantities[variantId] = next;
   document.getElementById(`qty-${productId}`).textContent = next;
   updateTotals();
 }
 
+// ===================== Shipping =====================
 function renderShipping(){
+  if(!loaded) return;
   const container = document.getElementById('shipping-container');
   if(!zones.length){
-    container.innerHTML = '<div class="loading">لا توجد مناطق توصيل متاحة</div>';
+    container.innerHTML = `<div class="loading">${esc(t('noZones'))}</div>`;
     return;
   }
   container.innerHTML = `
-    <label for="zone-select">المحافظة</label>
-    <select id="zone-select" onchange="onZoneChange(this.value)">
-      <option value="">اختر المحافظة</option>
-      ${zones.map(z => `<option value="${esc(z.zone_id)}">${esc(z.zone_name_ar)}</option>`).join('')}
+    <label for="zone-select">${esc(t('govLabel'))}</label>
+    <select id="zone-select">
+      <option value="">${esc(t('govChoose'))}</option>
+      ${zones.map(z => `<option value="${esc(z.zone_id)}"${z.zone_id === selectedZoneId ? ' selected' : ''}>${esc(tr(z.zone_name_ar || z.zone_name))}</option>`).join('')}
     </select>
-    <div id="rate-options"></div>
-  `;
+    <div id="rate-options"></div>`;
+  document.getElementById('zone-select').addEventListener('change', e => onZoneChange(e.target.value));
+  renderRates();
 }
 
 function onZoneChange(zoneId){
+  selectedZoneId = zoneId || null;
   selectedShipping = null;
-  const rateContainer = document.getElementById('rate-options');
-  if(!zoneId){ rateContainer.innerHTML=''; updateTotals(); return; }
-  const zone = zones.find(z => String(z.zone_id) === String(zoneId));
-  rateContainer.innerHTML = zone.rates.map((r, idx) => `
-    <label class="radio-row" id="rate-row-${idx}" onclick="selectRate('${esc(zoneId)}', ${idx})">
-      <span class="radio-label">
-        <input type="radio" name="rate" value="${idx}">
-        ${esc(r.rate_name_ar)}
-      </span>
-      <span class="radio-price">${money(r.price)}</span>
-    </label>
-  `).join('');
-}
-
-function selectRate(zoneId, idx){
-  const zone = zones.find(z => String(z.zone_id) === String(zoneId));
-  const rate = zone.rates[idx];
-  selectedShipping = { zone_id: zone.zone_id, zone_name: zone.zone_name, rate_name: rate.rate_name, price: rate.price };
-  document.querySelectorAll('.radio-row').forEach(el => el.classList.remove('selected'));
-  document.getElementById(`rate-row-${idx}`).classList.add('selected');
-  document.querySelectorAll('.radio-row input')[idx].checked = true;
+  renderRates();
   updateTotals();
 }
 
+function renderRates(){
+  const box = document.getElementById('rate-options');
+  if(!box) return;
+  const zone = zones.find(z => z.zone_id === selectedZoneId);
+  if(!zone){ box.innerHTML = ''; return; }
+  box.innerHTML = zone.rates.map((r, idx) => {
+    const chosen = selectedShipping && selectedShipping.rate_name === r.rate_name;
+    return `<label class="radio-row${chosen ? ' selected' : ''}" data-idx="${idx}">
+      <span class="radio-label"><input type="radio" name="rate" value="${idx}"${chosen ? ' checked' : ''}> ${esc(tr(r.rate_name_ar || r.rate_name))}</span>
+      <span class="radio-price">${money(r.price)}</span>
+    </label>`;
+  }).join('');
+  box.querySelectorAll('.radio-row').forEach(el => el.addEventListener('click', () => selectRate(Number(el.dataset.idx))));
+}
+
+function selectRate(idx){
+  const zone = zones.find(z => z.zone_id === selectedZoneId);
+  if(!zone) return;
+  const rate = zone.rates[idx];
+  selectedShipping = { zone_id: zone.zone_id, zone_name: zone.zone_name, rate_name: rate.rate_name, price: rate.price };
+  document.querySelectorAll('#rate-options .radio-row').forEach((el, i) => {
+    el.classList.toggle('selected', i === idx);
+    const input = el.querySelector('input'); if(input) input.checked = (i === idx);
+  });
+  updateTotals();
+}
+
+// ===================== Totals =====================
 function getOrderItems(){
   const items = [];
   for(const product of products){
     for(const variant of product.variants){
       const qty = quantities[variant.variant_id] || 0;
-      if(qty > 0){
-        items.push({ variant_id: variant.variant_id, quantity: qty });
-      }
+      if(qty > 0) items.push({ variant_id: variant.variant_id, quantity: qty });
     }
   }
   return items;
@@ -474,11 +601,56 @@ function updateTotals(){
   document.getElementById('subtotal').textContent = money(subtotal);
   document.getElementById('shipping-cost').textContent = money(shippingCost);
   document.getElementById('grand-total').textContent = money(subtotal + shippingCost);
-
-  const hasItems = getOrderItems().length > 0;
-  document.getElementById('submit-btn').disabled = !(hasItems && selectedShipping);
+  document.getElementById('submit-btn').disabled = !(getOrderItems().length > 0 && selectedShipping);
 }
 
+// ===================== Status message =====================
+function serverErrorText(msg){
+  if(lang === 'ar') return msg;
+  if(SERVER_ERRORS_EN[msg]) return SERVER_ERRORS_EN[msg];
+  return /[\u0600-\u06FF]/.test(msg) ? t('genericError') : msg;
+}
+
+function renderStatus(){
+  const el = document.getElementById('status');
+  if(!statusState){ el.textContent = ''; el.className = ''; return; }
+  if(statusState.kind === 'error'){
+    el.textContent = statusState.key ? t(statusState.key) : serverErrorText(statusState.server || '');
+    el.className = 'error';
+    return;
+  }
+  const inv = statusState.invoice;
+  el.innerHTML = esc(t('success')) +
+    (inv ? `<br><a href="${esc(inv)}" target="_blank" rel="noopener" class="pay-now-btn">${esc(t('payNow'))}</a>` : '');
+  el.className = 'success';
+}
+
+// ===================== Language switch =====================
+let sending = false;
+function setSubmitLabel(){ document.getElementById('submit-btn').textContent = sending ? t('sending') : t('confirm'); }
+
+function applyLang(){
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+  document.title = t('pageTitle');
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n')); });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-ph')); });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.getAttribute('data-i18n-title')); });
+  document.getElementById('lang-btn').textContent = lang === 'ar' ? 'English' : 'العربي';
+  setSubmitLabel();
+  renderProducts();
+  renderShipping();
+  updateTotals();
+  renderStatus();
+}
+
+document.getElementById('lang-btn').addEventListener('click', () => {
+  lang = lang === 'ar' ? 'en' : 'ar';
+  try { localStorage.setItem('lang', lang); } catch (e) {}
+  applyLang();
+});
+
+// ===================== Events =====================
 document.getElementById('product-search').addEventListener('input', applySearch);
 document.getElementById('product-search').addEventListener('keydown', (e) => {
   if(e.key === 'Enter'){ e.preventDefault(); e.target.blur(); }
@@ -486,10 +658,7 @@ document.getElementById('product-search').addEventListener('keydown', (e) => {
 
 document.getElementById('order-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const statusEl = document.getElementById('status');
-  const submitBtn = document.getElementById('submit-btn');
-  statusEl.textContent = '';
-  statusEl.className = '';
+  statusState = null; renderStatus();
 
   const payload = {
     customer: {
@@ -503,18 +672,14 @@ document.getElementById('order-form').addEventListener('submit', async (e) => {
   };
 
   if(!payload.customer.name || !payload.customer.phone || !payload.customer.address){
-    statusEl.textContent = 'من فضلك املأ كل البيانات';
-    statusEl.className = 'error';
-    return;
+    statusState = { kind:'error', key:'fillAll' }; renderStatus(); return;
   }
   if(!/^[+0-9\s-]{8,20}$/.test(payload.customer.phone)){
-    statusEl.textContent = 'رقم التليفون مش صحيح، اكتبه بالأرقام بس';
-    statusEl.className = 'error';
-    return;
+    statusState = { kind:'error', key:'badPhone' }; renderStatus(); return;
   }
 
-  submitBtn.disabled = true;
-  submitBtn.textContent = 'جاري إرسال الطلب...';
+  sending = true; setSubmitLabel();
+  document.getElementById('submit-btn').disabled = true;
 
   try{
     const res = await fetch('/api/create-draft-order', {
@@ -523,25 +688,30 @@ document.getElementById('order-form').addEventListener('submit', async (e) => {
       body: JSON.stringify(payload),
     });
     const data = await res.json().catch(() => ({}));
-    if(!res.ok || data.error) throw new Error(data.error || 'حصل خطأ، حاول تاني');
+    if(!res.ok || data.error){
+      statusState = { kind:'error', server: data.error || '' };
+      if(!data.error) statusState = { kind:'error', key:'genericError' };
+      renderStatus();
+      return;
+    }
 
-    const safeInvoice = (data.invoice_url && /^https:\/\//.test(data.invoice_url)) ? data.invoice_url : null;
-    statusEl.innerHTML = '✅ تم إرسال طلبك بنجاح! هنتواصل معاك قريب.' +
-      (safeInvoice ? `<br><a href="${esc(safeInvoice)}" target="_blank" rel="noopener" class="pay-now-btn">💳 ادفع أونلاين دلوقتي (اختياري)</a>` : '');
-    statusEl.className = 'success';
+    const invoice = (data.invoice_url && /^https:\/\//.test(data.invoice_url)) ? data.invoice_url : null;
+    statusState = { kind:'success', invoice };
     document.getElementById('order-form').reset();
-    for(const k in quantities) quantities[k] = 0;
-    renderProducts();
-    document.getElementById('rate-options').innerHTML = '';
+    for(const k in quantities) delete quantities[k];
+    for(const k in selectedVariant) delete selectedVariant[k];
+    selectedZoneId = null;
     selectedShipping = null;
+    renderProducts();
+    renderShipping();
     updateTotals();
-    statusEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    renderStatus();
+    document.getElementById('status').scrollIntoView({ behavior: 'smooth', block: 'center' });
   }catch(err){
-    statusEl.textContent = err.message;
-    statusEl.className = 'error';
+    console.error(err);
+    statusState = { kind:'error', key:'genericError' }; renderStatus();
   }finally{
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'أكد الطلب';
+    sending = false; setSubmitLabel();
     updateTotals();
   }
 });
@@ -552,6 +722,7 @@ if('serviceWorker' in navigator){
   });
 }
 
+applyLang();
 loadData();
 </script>
 </body>
