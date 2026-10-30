@@ -212,7 +212,7 @@
       <label for="address" data-i18n="address">العنوان بالتفصيل</label>
       <textarea id="address" required maxlength="300" data-i18n-ph="addressPh" placeholder="الشارع، المنطقة، علامة مميزة..."></textarea>
 
-      <div class="hp" aria-hidden="true"><label>Website<input type="text" id="website" tabindex="-1" autocomplete="off"></label></div>
+      <div class="hp" aria-hidden="true"><label>Leave this empty<input type="text" id="hp_x7q" name="hp_x7q" tabindex="-1" autocomplete="off"></label></div>
 
       <div class="trust-note" data-i18n="trust">🔒 بياناتك دي بتُستخدم بس لتنفيذ وتوصيل طلبك، ومش بنشاركها مع حد. الفورم ده مش بياخد أي بيانات كارت خالص.</div>
     </section>
@@ -723,7 +723,7 @@ document.getElementById('order-form').addEventListener('submit', async (e) => {
     },
     items: getOrderItems(),
     shipping: selectedShipping ? { zone_id: selectedShipping.zone_id, rate_name: selectedShipping.rate_name } : null,
-    website: document.getElementById('website').value, // honeypot: must stay empty
+    hp_x7q: document.getElementById('hp_x7q').value, // honeypot: must stay empty
   };
 
   if(!payload.customer.name || !payload.customer.phone || !payload.customer.address){
