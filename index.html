@@ -234,7 +234,7 @@ const I18N = {
     securePay:'💳 الدفع بيتم من خلال صفحة Shopify الرسمية الآمنة — مش هنا في الفورم.',
     policy:'سياسة الأمان والمسؤولية', inStock:'✔ متوفر', noImage:'لا توجد صورة',
     govLabel:'المحافظة', govChoose:'اختر المحافظة', noZones:'لا توجد مناطق توصيل متاحة',
-    noProducts:'لا توجد منتجات متاحة حاليًا', otherProducts:'منتجات أخرى',
+    noProducts:'لا توجد منتجات متاحة حاليًا', otherProducts:'الشيشة',
     loadError:'تعذر تحميل البيانات، حاول تاني بعد شوية.', currency:'جنيه',
     fillAll:'من فضلك املأ كل البيانات', badPhone:'رقم التليفون مش صحيح، اكتبه بالأرقام بس',
     genericError:'حصل خطأ، حاول تاني بعد شوية',
@@ -253,7 +253,7 @@ const I18N = {
     securePay:'💳 Payment is made on the official, secure Shopify page — not in this form.',
     policy:'Safety & responsibility policy', inStock:'✔ In stock', noImage:'No image',
     govLabel:'Governorate', govChoose:'Choose governorate', noZones:'No delivery areas available',
-    noProducts:'No products available right now', otherProducts:'Other products',
+    noProducts:'No products available right now', otherProducts:'SHISHA',
     loadError:'Could not load the data, please try again in a moment.', currency:'EGP',
     fillAll:'Please fill in all fields', badPhone:'Invalid phone number, please use digits only',
     genericError:'Something went wrong, please try again in a moment',
@@ -475,7 +475,7 @@ function renderChips(){
   };
   const total = renderedGroups.reduce((n, g) => n + g.count, 0);
   bar.innerHTML = chip('', t('all'), total, null, '🛍️') +
-    renderedGroups.map(g => chip(g.key, g.other ? t('otherProducts') : tr(g.title), g.count, g.image, g.other ? '📦' : '🛍️')).join('');
+    renderedGroups.map(g => chip(g.key, g.other ? t('otherProducts') : tr(g.title), g.count, g.image, g.other ? '💨' : '🛍️')).join('');
   bar.hidden = false;
 }
 
