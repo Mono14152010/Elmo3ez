@@ -148,14 +148,15 @@ module.exports = async (req, res) => {
     // 2) ALL collections (both manually curated "custom" and rule-based "smart"), paginated.
     // Sequential (not parallel) to respect Shopify's rate limit.
     const customCollections = await shopifyGetAll(
-      shop, accessToken, "custom_collections.json?limit=250&fields=id,title", "custom_collections"
+      shop, accessToken, "custom_collections.json?limit=250&fields=id,title,image", "custom_collections"
     );
     const smartCollections = await shopifyGetAll(
-      shop, accessToken, "smart_collections.json?limit=250&fields=id,title", "smart_collections"
+      shop, accessToken, "smart_collections.json?limit=250&fields=id,title,image", "smart_collections"
     );
 
     const allCollections = [...customCollections, ...smartCollections];
     const customCollectionIds = new Set(customCollections.map((c) => c.id));
+    const memberCounts = new Map(); // collection id -> how many products Shopify says it has
 
     // 3) Membership:
     //    - For custom (manually curated) collections, "collects.json" gives us
@@ -168,6 +169,7 @@ module.exports = async (req, res) => {
       );
       const collectionById = new Map(allCollections.map((c) => [c.id, c]));
       collects.forEach((c) => {
+        memberCounts.set(c.collection_id, (memberCounts.get(c.collection_id) || 0) + 1);
         const product = productsById.get(c.product_id);
         const collection = collectionById.get(c.collection_id);
         if (product && collection) product.collection_titles.push(collection.title);
@@ -181,15 +183,44 @@ module.exports = async (req, res) => {
         `products.json?collection_id=${col.id}&limit=250&fields=id`,
         "products"
       );
+      memberCounts.set(col.id, members.length);
       members.forEach((mp) => {
         const product = productsById.get(mp.id);
         if (product) product.collection_titles.push(col.title);
       });
     }
 
-    const collections = allCollections.map((c) => ({ id: c.id, title: c.title }));
+    // Small picture for each collection (shown on the category buttons).
+    const thumb = (src) => {
+      try {
+        const u = new URL(src);
+        u.searchParams.set("width", "240");
+        return u.toString();
+      } catch (e) {
+        return null;
+      }
+    };
+    const collections = allCollections.map((c) => ({
+      id: c.id,
+      title: c.title,
+      image: c.image && c.image.src ? thumb(c.image.src) : null,
+    }));
 
-    res.status(200).json({ products, collections });
+    const result = { products, collections };
+
+    // Troubleshooting helper: open /api/get-products?debug=1 to see every collection
+    // Shopify returned, its type, and how many products it contains (names + counts only).
+    if (req.query && req.query.debug === "1") {
+      result.debug = allCollections.map((c) => ({
+        id: c.id,
+        title: c.title,
+        type: customCollectionIds.has(c.id) ? "custom" : "smart",
+        products_in_shopify: memberCounts.get(c.id) || 0,
+        shown_in_form: products.filter((p) => p.collection_titles.includes(c.title)).length,
+      }));
+    }
+
+    res.status(200).json(result);
   } catch (err) {
     console.error(err);
     res.setHeader("Cache-Control", "no-store");
