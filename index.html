@@ -106,6 +106,7 @@
     background:#000;color:#fff;font-weight:700;text-decoration:none;
   }
   .loading{text-align:center;color:var(--muted);padding:20px 0;}
+  .stock-msg{color:var(--danger);font-size:.78rem;font-weight:600;margin-top:4px;}
 
   .scroll-nav{position:fixed;left:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:50;}
   .scroll-btn{
@@ -226,7 +227,7 @@ const I18N = {
     pageTitle:'اطلب دلوقتي - Elmo3ez', h1:'اطلب دلوقتي', yourInfo:'بياناتك', name:'الاسم', phone:'رقم التليفون',
     address:'العنوان بالتفصيل', addressPh:'الشارع، المنطقة، علامة مميزة...',
     trust:'🔒 بياناتك دي بتُستخدم بس لتنفيذ وتوصيل طلبك، ومش بنشاركها مع حد. الفورم ده مش بياخد أي بيانات كارت خالص.',
-    products:'المنتجات', searchPh:'🔍 ابحث عن صنف...', noResults:'مفيش أصناف بالاسم ده', all:'الكل',
+    products:'المنتجات', searchPh:'🔍 ابحث عن صنف...', noResults:'مفيش أصناف بالاسم ده', all:'الكل', qtyUnavailable:'الكمية دي مش متاحة حاليًا', itemsRemoved:'بعض الأصناف اتشالت من طلبك لأنها خلصت',
     loadingProducts:'جاري تحميل المنتجات...', loadingZones:'جاري تحميل مناطق التوصيل...',
     delivery:'التوصيل', sumItems:'المنتجات', sumDelivery:'التوصيل', sumTotal:'الإجمالي',
     badge1:'💳 دفع آمن 100%', badge2:'📦 تغليف آمن', badge3:'⭐ ثقة آلاف العملاء منذ 2018',
@@ -245,7 +246,7 @@ const I18N = {
     pageTitle:'Order now - Elmo3ez', h1:'Order now', yourInfo:'Your details', name:'Name', phone:'Phone number',
     address:'Full address', addressPh:'Street, area, landmark...',
     trust:'🔒 Your details are used only to prepare and deliver your order and are never shared. This form does not collect any card details.',
-    products:'Products', searchPh:'🔍 Search for an item...', noResults:'No items match your search', all:'All',
+    products:'Products', searchPh:'🔍 Search for an item...', noResults:'No items match your search', all:'All', qtyUnavailable:'This quantity is not available right now', itemsRemoved:'Some items were removed from your order because they sold out',
     loadingProducts:'Loading products...', loadingZones:'Loading delivery areas...',
     delivery:'Delivery', sumItems:'Items', sumDelivery:'Delivery', sumTotal:'Total',
     badge1:'💳 100% secure payment', badge2:'📦 Safe packaging', badge3:'⭐ Trusted by thousands of customers since 2018',
@@ -377,6 +378,7 @@ async function loadData(){
     collections = pData.collections || [];
     zones = sData.zones || [];
     loaded = true;
+    lastLoad = Date.now();
     renderProducts();
     renderShipping();
   }catch(err){
@@ -413,6 +415,7 @@ function productCardHtml(p, collectionTitle){
       <div class="product-info">
         <div class="product-title">${esc(tr(p.title))} <span class="stock-badge in">${esc(t('inStock'))}</span></div>
         <div class="product-price" id="price-${p.product_id}">${money(current.price)}</div>
+        <div class="stock-msg" id="msg-${p.product_id}" hidden></div>
         ${variantOptions}
       </div>
       <div class="qty-control">
@@ -517,13 +520,96 @@ function onVariantChange(productId, variantId){
   updateTotals();
 }
 
+const confirmedQty = {};  // variant_id -> last quantity Shopify confirmed is available
+const verifyTimers = {};
+const verifySeq = {};
+
+function setQtyText(productId, n){
+  const el = document.getElementById(`qty-${productId}`);
+  if(el) el.textContent = n;
+}
+
+function showStockMsg(productId){
+  const el = document.getElementById(`msg-${productId}`);
+  if(!el) return;
+  el.textContent = t('qtyUnavailable');
+  el.hidden = false;
+  clearTimeout(el._hideTimer);
+  el._hideTimer = setTimeout(() => { el.hidden = true; }, 4000);
+}
+
 function changeQty(productId, delta){
   const variantId = selectedVariant[productId];
-  const next = Math.min(MAX_QTY, Math.max(0, (quantities[variantId] || 0) + delta));
+  const current = quantities[variantId] || 0;
+  const next = Math.min(MAX_QTY, Math.max(0, current + delta));
+  if(next === current) return;
   quantities[variantId] = next;
-  document.getElementById(`qty-${productId}`).textContent = next;
+  setQtyText(productId, next);
   updateTotals();
+
+  if(delta < 0){
+    if(next < (confirmedQty[variantId] || 0)) confirmedQty[variantId] = next;
+    return;
+  }
+  // Raising the quantity: ask Shopify right now (after a short pause while the customer taps).
+  clearTimeout(verifyTimers[variantId]);
+  verifyTimers[variantId] = setTimeout(() => verifyStock(productId, variantId), 250);
 }
+
+async function verifyStock(productId, variantId){
+  const qty = quantities[variantId] || 0;
+  if(qty < 1) return;
+  const seq = (verifySeq[variantId] = (verifySeq[variantId] || 0) + 1);
+  try{
+    const res = await fetch('/api/check-stock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product_id: productId, variant_id: variantId, quantity: qty }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if(seq !== verifySeq[variantId]) return;            // a newer tap already replaced this check
+    if(!res.ok || typeof data.available !== 'boolean') return; // problem reaching the server: don't block, the final check happens on submit
+    if(data.available){ confirmedQty[variantId] = qty; return; }
+
+    // Not available: go back to the last quantity that was confirmed.
+    const back = Math.max(0, Math.min(confirmedQty[variantId] || 0, qty - 1));
+    quantities[variantId] = back;
+    setQtyText(productId, back);
+    updateTotals();
+    showStockMsg(productId);
+    if(data.soldOut) refreshProducts(true);              // the item sold out: take it off the list
+  }catch(e){ /* offline: the final check happens when the order is sent */ }
+}
+
+// Reload the product list from Shopify (keeps what the customer already chose).
+let lastLoad = Date.now();
+async function refreshProducts(fresh){
+  try{
+    const res = await fetch('/api/get-products' + (fresh ? `?fresh=${Date.now()}` : ''));
+    const data = await res.json();
+    if(!res.ok || data.error) return;
+    products = data.products || [];
+    collections = data.collections || [];
+    lastLoad = Date.now();
+
+    const valid = new Set();
+    products.forEach(p => p.variants.forEach(v => valid.add(v.variant_id)));
+    let removed = false;
+    Object.keys(quantities).forEach(k => {
+      if(!valid.has(Number(k))){ if(quantities[k] > 0) removed = true; delete quantities[k]; delete confirmedQty[k]; }
+    });
+    Object.keys(selectedVariant).forEach(pid => {
+      if(!valid.has(selectedVariant[pid])) delete selectedVariant[pid];
+    });
+    renderProducts();
+    updateTotals();
+    if(removed){ statusState = { kind:'error', key:'itemsRemoved' }; renderStatus(); }
+  }catch(e){ /* keep the current list */ }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible' && loaded && Date.now() - lastLoad > 60000) refreshProducts(false);
+});
 
 // ===================== Shipping =====================
 function renderShipping(){
@@ -713,6 +799,7 @@ document.getElementById('order-form').addEventListener('submit', async (e) => {
       statusState = { kind:'error', server: data.error || '' };
       if(!data.error) statusState = { kind:'error', key:'genericError' };
       renderStatus();
+      if(res.status === 409) refreshProducts(true);
       return;
     }
 
@@ -720,6 +807,7 @@ document.getElementById('order-form').addEventListener('submit', async (e) => {
     statusState = { kind:'success', invoice };
     document.getElementById('order-form').reset();
     for(const k in quantities) delete quantities[k];
+    for(const k in confirmedQty) delete confirmedQty[k];
     for(const k in selectedVariant) delete selectedVariant[k];
     selectedZoneId = null;
     selectedShipping = null;
